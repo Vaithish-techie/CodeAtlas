@@ -3,8 +3,13 @@ const { execSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
+const { GoogleGenAI } = require("@google/genai");
+
+// Load environment variables
+require("dotenv").config();
 
 const app = express();
+const genAI = new GoogleGenAI(process.env.GEMINI_API_KEY || "");
 app.use(express.json());
 app.use(express.static("public"));
 
@@ -89,6 +94,95 @@ app.post("/api/ingest", (req, res) => {
       `[${new Date().toISOString()}] Found ${fileMap.size} files to analyze`,
     );
 
+    // Cognitive Complexity Scoring Function
+    function computeCognitiveComplexity(fileContent) {
+      // Count branching keywords
+      const branchingPatterns = [
+        /\bif\s*\(/g,
+        /\belse\b/g,
+        /\bfor\s*\(/g,
+        /\bwhile\s*\(/g,
+        /\bswitch\s*\(/g,
+        /\bcatch\s*\(/g,
+        /&&/g,
+        /\|\|/g,
+        /\?[^:]*:/g, // ternary operator
+      ];
+
+      let branchCount = 0;
+      branchingPatterns.forEach((pattern) => {
+        const matches = fileContent.match(pattern);
+        branchCount += matches ? matches.length : 0;
+      });
+
+      // Compute max nesting depth by tracking { and }
+      let nestingDepth = 0;
+      let maxNestingDepth = 0;
+      for (let char of fileContent) {
+        if (char === "{") {
+          nestingDepth++;
+          maxNestingDepth = Math.max(maxNestingDepth, nestingDepth);
+        } else if (char === "}") {
+          nestingDepth--;
+        }
+      }
+
+      // Count function definitions
+      const functionPatterns = [
+        /\bfunction\s+\w+\s*\(/g,
+        /\bfunction\s*\(/g,
+        /=>\s*{/g,
+        /=>\s*\(/g,
+        /\.then\s*\(/g,
+        /\.catch\s*\(/g,
+      ];
+
+      let functionCount = 0;
+      functionPatterns.forEach((pattern) => {
+        const matches = fileContent.match(pattern);
+        functionCount += matches ? matches.length : 0;
+      });
+
+      // Count TODO/FIXME/HACK comments
+      const todoPatterns = [
+        /\/\/\s*TODO/gi,
+        /\/\/\s*FIXME/gi,
+        /\/\/\s*HACK/gi,
+        /\/\*[\s\S]*?TODO[\s\S]*?\*\//gi,
+        /\/\*[\s\S]*?FIXME[\s\S]*?\*\//gi,
+        /\/\*[\s\S]*?HACK[\s\S]*?\*\//gi,
+      ];
+
+      let todoCount = 0;
+      todoPatterns.forEach((pattern) => {
+        const matches = fileContent.match(pattern);
+        todoCount += matches ? matches.length : 0;
+      });
+
+      // Count total lines
+      const lineCount = fileContent.split("\n").length;
+
+      // Compute weighted score (0-100)
+      const score = Math.min(
+        100,
+        branchCount * 2 +
+          maxNestingDepth * 5 +
+          todoCount * 8 +
+          Math.floor(lineCount / 10),
+      );
+
+      return {
+        score,
+        breakdown: {
+          branchCount,
+          nestingDepth: maxNestingDepth,
+          functionCount,
+          todoCount,
+          lineCount,
+        },
+      };
+    }
+
     const importRegex =
       /(?:import|require)\s*\(\s*['"](\.[^'"]+)['"]\s*\)|import\s+.*?\s+from\s+['"](\.[^'"]+)['"]/g;
 
@@ -96,19 +190,39 @@ app.post("/api/ingest", (req, res) => {
     let totalLinks = 0;
 
     for (const [relPath, nodeData] of fileMap.entries()) {
+      let content;
+      try {
+        content = fs.readFileSync(nodeData.fullPath, "utf-8");
+      } catch (err) {
+        // If we can't read the file, add node without complexity data
+        nodes.push({
+          id: nodeData.id,
+          label: nodeData.label,
+          type: nodeData.type,
+          size: nodeData.size,
+          complexityScore: 0,
+          complexityBreakdown: {
+            branchCount: 0,
+            nestingDepth: 0,
+            functionCount: 0,
+            todoCount: 0,
+            lineCount: 0,
+          },
+        });
+        continue;
+      }
+
+      // Compute cognitive complexity
+      const complexity = computeCognitiveComplexity(content);
+
       nodes.push({
         id: nodeData.id,
         label: nodeData.label,
         type: nodeData.type,
         size: nodeData.size,
+        complexityScore: complexity.score,
+        complexityBreakdown: complexity.breakdown,
       });
-
-      let content;
-      try {
-        content = fs.readFileSync(nodeData.fullPath, "utf-8");
-      } catch (err) {
-        continue;
-      }
 
       let match;
 
@@ -153,7 +267,8 @@ app.post("/api/ingest", (req, res) => {
       `[${new Date().toISOString()}] Analysis complete: ${nodes.length} nodes, ${totalLinks} links`,
     );
 
-    res.json({ nodes, links });
+    // Return nodes, links, and the temp directory path for AI analysis
+    res.json({ nodes, links, repoPath: tmpDir });
   } catch (error) {
     console.error(
       `[${new Date().toISOString()}] Error processing repository:`,
@@ -177,19 +292,12 @@ app.post("/api/ingest", (req, res) => {
 
     res.status(500).json({ error: errorMessage });
   } finally {
-    try {
-      if (fs.existsSync(tmpDir)) {
-        fs.rmSync(tmpDir, { recursive: true, force: true });
-        console.log(
-          `[${new Date().toISOString()}] Cleaned up temporary directory: ${tmpDir}`,
-        );
-      }
-    } catch (cleanupError) {
-      console.error(
-        `[${new Date().toISOString()}] Failed to cleanup ${tmpDir}:`,
-        cleanupError.message,
-      );
-    }
+    // Note: We're NOT cleaning up tmpDir immediately anymore
+    // It needs to persist for AI file analysis via /api/file-summary
+    // In production, implement a cleanup job that removes directories older than 1 hour
+    console.log(
+      `[${new Date().toISOString()}] Temporary directory preserved for AI analysis: ${tmpDir}`,
+    );
   }
 });
 
@@ -200,6 +308,102 @@ app.get("/api/status", (req, res) => {
     timestamp: new Date().toISOString(),
     version: "1.0.0",
   });
+});
+
+// File Summary Endpoint - AI-powered file analysis using Gemini
+app.post("/api/file-summary", async (req, res) => {
+  const { repoPath, filePath } = req.body;
+
+  if (!repoPath || !filePath) {
+    return res.status(400).json({
+      error: "Both repoPath and filePath are required",
+    });
+  }
+
+  // Check if Gemini API key is configured
+  if (!process.env.GEMINI_API_KEY) {
+    console.warn(
+      "[WARNING] GEMINI_API_KEY not configured, returning mock response",
+    );
+    return res.json({
+      summary:
+        "This is a mock summary. Configure GEMINI_API_KEY to enable AI analysis.",
+      mainFunctions: ["mockFunction1", "mockFunction2", "mockFunction3"],
+      role: "utility",
+      riskNote:
+        "Unable to analyze - API key not configured. This is a fallback response.",
+    });
+  }
+
+  try {
+    // Read the file content
+    const fullPath = path.join(repoPath, filePath);
+
+    if (!fs.existsSync(fullPath)) {
+      return res.status(404).json({
+        error: "File not found at the specified path",
+      });
+    }
+
+    const fileContent = fs.readFileSync(fullPath, "utf-8");
+
+    // Prepare the prompt for Gemini
+    const systemPrompt = `You are a senior software architect. Analyse this file and respond with ONLY a JSON object (no markdown, no backticks) with these fields:
+{
+  "summary": "2 sentence plain English explanation of what this file does",
+  "mainFunctions": ["list", "of", "top", "3-5", "function or component names"],
+  "role": "one of: entry-point | service | utility | component | config | test | model",
+  "riskNote": "one sentence about the biggest maintainability risk in this file, or null if none"
+}`;
+
+    const userPrompt = `File: ${filePath}\n\nContent:\n${fileContent.substring(0, 8000)}`; // Limit to 8000 chars
+
+    // Call Gemini API
+    const result = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: `${systemPrompt}\n\n${userPrompt}`,
+    });
+    const responseText = result.text;
+
+    // Try to parse the JSON response
+    let parsedResponse;
+    try {
+      // Remove markdown code blocks if present
+      const cleanedText = responseText
+        .replace(/```json\n?/g, "")
+        .replace(/```\n?/g, "")
+        .trim();
+      parsedResponse = JSON.parse(cleanedText);
+    } catch (parseError) {
+      console.error("Failed to parse Gemini response:", responseText);
+      throw new Error("Invalid JSON response from AI");
+    }
+
+    // Validate response structure
+    if (
+      !parsedResponse.summary ||
+      !parsedResponse.mainFunctions ||
+      !parsedResponse.role
+    ) {
+      throw new Error("Incomplete response from AI");
+    }
+
+    res.json(parsedResponse);
+  } catch (error) {
+    console.error(
+      `[${new Date().toISOString()}] Error in file-summary:`,
+      error.message,
+    );
+
+    // Return graceful fallback response
+    res.json({
+      summary:
+        "Unable to generate AI summary at this time. The file appears to be a code module with standard functionality.",
+      mainFunctions: ["(analysis unavailable)"],
+      role: "utility",
+      riskNote: "AI analysis temporarily unavailable. Please try again later.",
+    });
+  }
 });
 
 // Health Scan Dashboard - Mock Data Endpoint

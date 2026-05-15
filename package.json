@@ -18,6 +18,8 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@google/genai": "^2.3.0",
+    "dotenv": "^16.0.3",
     "express": "^4.22.2"
   },
   "engines": {
