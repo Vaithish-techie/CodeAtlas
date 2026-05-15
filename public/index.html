@@ -77,6 +77,16 @@
         color: #8b949e;
         cursor: not-allowed;
       }
+      .secondary-btn {
+        background: #21262d;
+        color: #58a6ff;
+        border: 1px solid #30363d;
+        margin-top: 10px;
+      }
+      .secondary-btn:hover {
+        background: #30363d;
+        border-color: #58a6ff;
+      }
       #details {
         margin-top: 20px;
         padding: 15px;
@@ -252,6 +262,9 @@
         placeholder="https://github.com/user/repo"
       />
       <button id="analyzeBtn">🔍 Generate Architecture Map</button>
+      <button id="healthScanBtn" class="secondary-btn">
+        🏥 Health Scan Dashboard
+      </button>
       <div id="stats">
         <div class="stat-item">
           📦 Files: <span class="stat-value" id="nodeCount">0</span>
@@ -296,7 +309,13 @@
     </div>
     <script>
       const btn = document.getElementById("analyzeBtn");
+      const healthScanBtn = document.getElementById("healthScanBtn");
       const loader = document.getElementById("loader");
+      
+      // Health Scan button navigation
+      healthScanBtn.addEventListener("click", () => {
+        window.location.href = "health.html";
+      });
       const detailContent = document.getElementById("detail-content");
       const stats = document.getElementById("stats");
       const nodeCountEl = document.getElementById("nodeCount");

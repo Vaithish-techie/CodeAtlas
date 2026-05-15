@@ -193,12 +193,86 @@ app.post("/api/ingest", (req, res) => {
   }
 });
 
-app.get("/api/health", (req, res) => {
+// Health check endpoint (for monitoring)
+app.get("/api/status", (req, res) => {
   res.json({
     status: "ok",
     timestamp: new Date().toISOString(),
     version: "1.0.0",
   });
+});
+
+// Health Scan Dashboard - Mock Data Endpoint
+// TODO: Replace with live AI scanners before demo (see HEALTH_SCAN_INTEGRATION.md)
+app.get("/api/health-scan", (req, res) => {
+  // Mock health scan data for Express.js repository
+  const mockHealthScanData = {
+    summary: {
+      totalIssues: 5,
+      deadCode: 1,
+      missingTests: 2,
+      docGaps: 2,
+    },
+    files: [
+      {
+        path: "lib/router.js",
+        issues: [
+          {
+            type: "dead_code",
+            severity: "high",
+            description:
+              "Function 'parseOldRoute()' is exported but never used internally.",
+            line: 145,
+            symbol: "parseOldRoute",
+          },
+          {
+            type: "doc_gap",
+            severity: "low",
+            description:
+              "Public function 'init()' is missing JSDoc documentation.",
+            line: 23,
+            symbol: "init",
+          },
+        ],
+      },
+      {
+        path: "lib/application.js",
+        issues: [
+          {
+            type: "missing_test",
+            severity: "medium",
+            description:
+              "Function 'lazyrouter()' has no corresponding test case.",
+            line: 89,
+            symbol: "lazyrouter",
+          },
+          {
+            type: "missing_test",
+            severity: "high",
+            description: "Critical function 'handle()' lacks test coverage.",
+            line: 156,
+            symbol: "handle",
+          },
+          {
+            type: "doc_gap",
+            severity: "medium",
+            description:
+              "Public method 'set()' is missing parameter documentation.",
+            line: 234,
+            symbol: "set",
+          },
+        ],
+      },
+    ],
+    metadata: {
+      scannedAt: new Date().toISOString(),
+      repository: "expressjs/express",
+      filesScanned: 2,
+      scanDuration: "0ms (mock)",
+    },
+  };
+
+  res.json(mockHealthScanData);
 });
 
 app.listen(PORT, () => {
