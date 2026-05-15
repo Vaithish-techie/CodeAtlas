@@ -1,0 +1,26 @@
+{
+  "name": "repotour",
+  "version": "1.0.0",
+  "description": "Interactive repository architecture visualization tool for developer onboarding",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "repository",
+    "visualization",
+    "d3js",
+    "architecture",
+    "onboarding",
+    "developer-tools"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.22.2"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

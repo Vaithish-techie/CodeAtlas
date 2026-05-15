@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RepoTour | AI Architecture Mapper</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        display: flex;
+        height: 100vh;
+        background: #0d1117;
+        color: #c9d1d9;
+        overflow: hidden;
+      }
+      #sidebar {
+        width: 320px;
+        background: #161b22;
+        padding: 25px;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        border-right: 1px solid #30363d;
+        z-index: 10;
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
+        overflow-y: auto;
+      }
+      h2 {
+        margin: 0;
+        color: #58a6ff;
+        font-size: 24px;
+      }
+      .subtitle {
+        font-size: 12px;
+        color: #8b949e;
+        margin: -10px 0 10px 0;
+      }
+      input {
+        padding: 12px;
+        background: #0d1117;
+        border: 1px solid #30363d;
+        color: white;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: border-color 0.2s;
+      }
+      input:focus {
+        outline: none;
+        border-color: #58a6ff;
+      }
+      input::placeholder {
+        color: #6e7681;
+      }
+      button {
+        padding: 12px;
+        background: #238636;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 14px;
+        transition: background 0.2s;
+      }
+      button:hover {
+        background: #2ea043;
+      }
+      button:disabled {
+        background: #30363d;
+        color: #8b949e;
+        cursor: not-allowed;
+      }
+      #details {
+        margin-top: 20px;
+        padding: 15px;
+        background: #0d1117;
+        border-radius: 6px;
+        border: 1px solid #30363d;
+        font-size: 13px;
+        line-height: 1.6;
+        word-wrap: break-word;
+        max-height: calc(100vh - 300px);
+        overflow-y: auto;
+      }
+      .detail-title {
+        color: #58a6ff;
+        font-weight: bold;
+        margin-bottom: 8px;
+        display: block;
+        border-bottom: 1px solid #30363d;
+        padding-bottom: 5px;
+      }
+      #detail-content b {
+        color: #58a6ff;
+      }
+      #graph-container {
+        flex: 1;
+        position: relative;
+      }
+      svg {
+        width: 100%;
+        height: 100%;
+        cursor: grab;
+      }
+      svg:active {
+        cursor: grabbing;
+      }
+      .node {
+        stroke: #161b22;
+        stroke-width: 2px;
+        cursor: pointer;
+        transition: fill 0.2s;
+      }
+      .node:hover {
+        fill: #ff7b72 !important;
+      }
+      .node.selected {
+        stroke: #58a6ff;
+        stroke-width: 3px;
+      }
+      .link {
+        stroke: #30363d;
+        stroke-opacity: 0.6;
+        stroke-width: 1.5px;
+      }
+      .link.highlighted {
+        stroke: #58a6ff;
+        stroke-opacity: 1;
+        stroke-width: 2.5px;
+      }
+      .node-label {
+        font-size: 10px;
+        fill: #8b949e;
+        pointer-events: none;
+        text-anchor: middle;
+        font-family: monospace;
+      }
+      #loader {
+        display: none;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(22, 27, 34, 0.95);
+        padding: 30px 50px;
+        border-radius: 8px;
+        border: 1px solid #30363d;
+        font-weight: bold;
+        color: #58a6ff;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
+        text-align: center;
+        z-index: 1000;
+      }
+      .loader-spinner {
+        width: 40px;
+        height: 40px;
+        margin: 0 auto 15px;
+        border: 4px solid #30363d;
+        border-top: 4px solid #58a6ff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+      .legend {
+        margin-top: 15px;
+        padding: 10px;
+        background: #0d1117;
+        border-radius: 6px;
+        border: 1px solid #30363d;
+        font-size: 11px;
+      }
+      .legend-title {
+        color: #58a6ff;
+        font-weight: bold;
+        margin-bottom: 8px;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        margin: 5px 0;
+        color: #8b949e;
+      }
+      .legend-color {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+        border: 1px solid #30363d;
+      }
+      #stats {
+        padding: 10px;
+        background: #0d1117;
+        border-radius: 6px;
+        border: 1px solid #30363d;
+        font-size: 12px;
+        color: #8b949e;
+        display: none;
+      }
+      #stats.visible {
+        display: block;
+      }
+      .stat-item {
+        margin: 5px 0;
+      }
+      .stat-value {
+        color: #58a6ff;
+        font-weight: bold;
+      }
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #0d1117;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #30363d;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #484f58;
+      }
+      .error-message {
+        color: #ff7b72;
+      }
+      .success-message {
+        color: #3fb950;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="sidebar">
+      <h2>🗺️ RepoTour</h2>
+      <p class="subtitle">Interactive codebase architecture mapper</p>
+      <input
+        type="text"
+        id="repoUrl"
+        value="https://github.com/expressjs/express"
+        placeholder="https://github.com/user/repo"
+      />
+      <button id="analyzeBtn">🔍 Generate Architecture Map</button>
+      <div id="stats">
+        <div class="stat-item">
+          📦 Files: <span class="stat-value" id="nodeCount">0</span>
+        </div>
+        <div class="stat-item">
+          🔗 Dependencies: <span class="stat-value" id="linkCount">0</span>
+        </div>
+      </div>
+      <div class="legend">
+        <div class="legend-title">File Types</div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #f1e05a"></div>
+          .js - JavaScript
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #3178c6"></div>
+          .ts - TypeScript
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #61dafb"></div>
+          .jsx - React JSX
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #007acc"></div>
+          .tsx - TypeScript JSX
+        </div>
+      </div>
+      <div id="details">
+        <span class="detail-title">📄 File Inspector</span>
+        <div id="detail-content">
+          Run an analysis and click a node in the graph to view file
+          dependencies.
+        </div>
+      </div>
+    </div>
+    <div id="graph-container">
+      <div id="loader">
+        <div class="loader-spinner"></div>
+        <div>🔄 Cloning & Analyzing Repository...</div>
+      </div>
+      <svg></svg>
+    </div>
+    <script>
+      const btn = document.getElementById("analyzeBtn");
+      const loader = document.getElementById("loader");
+      const detailContent = document.getElementById("detail-content");
+      const stats = document.getElementById("stats");
+      const nodeCountEl = document.getElementById("nodeCount");
+      const linkCountEl = document.getElementById("linkCount");
+      const svg = d3.select("svg");
+      let simulation;
+      let currentData = { nodes: [], links: [] };
+
+      btn.addEventListener("click", async () => {
+        const url = document.getElementById("repoUrl").value.trim();
+        if (!url) {
+          detailContent.innerHTML =
+            '<span class="error-message">⚠️ Please enter a repository URL</span>';
+          return;
+        }
+
+        btn.disabled = true;
+        loader.style.display = "block";
+        svg.selectAll("*").remove();
+        stats.classList.remove("visible");
+        detailContent.innerHTML = "⏳ Processing repository data...";
+
+        try {
+          const response = await fetch("/api/ingest", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ repoUrl: url }),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(
+              errorData.error || "Failed to fetch repository data",
+            );
+          }
+
+          const data = await response.json();
+          currentData = data;
+
+          nodeCountEl.textContent = data.nodes.length;
+          linkCountEl.textContent = data.links.length;
+          stats.classList.add("visible");
+
+          detailContent.innerHTML = `<span class="success-message">✅ Success!</span><br><br>Rendered <b>${data.nodes.length}</b> files and <b>${data.links.length}</b> internal connections.<br><br>💡 <i>Click any node to view details. Drag nodes to reposition. Scroll to zoom.</i>`;
+          renderGraph(data.nodes, data.links);
+        } catch (err) {
+          detailContent.innerHTML = `<span class="error-message">❌ Error: ${err.message}</span>`;
+          console.error("Analysis error:", err);
+        } finally {
+          btn.disabled = false;
+          loader.style.display = "none";
+        }
+      });
+
+      function renderGraph(nodes, links) {
+        const width = document.getElementById("graph-container").clientWidth;
+        const height = document.getElementById("graph-container").clientHeight;
+
+        const g = svg.append("g");
+        svg.call(
+          d3
+            .zoom()
+            .scaleExtent([0.1, 4])
+            .on("zoom", (event) => g.attr("transform", event.transform)),
+        );
+
+        simulation = d3
+          .forceSimulation(nodes)
+          .force(
+            "link",
+            d3
+              .forceLink(links)
+              .id((d) => d.id)
+              .distance(80),
+          )
+          .force("charge", d3.forceManyBody().strength(-300))
+          .force("center", d3.forceCenter(width / 2, height / 2))
+          .force("collide", d3.forceCollide().radius(25));
+
+        const link = g
+          .append("g")
+          .selectAll("line")
+          .data(links)
+          .join("line")
+          .attr("class", "link");
+
+        const nodeGroup = g
+          .append("g")
+          .selectAll("g")
+          .data(nodes)
+          .join("g")
+          .call(drag(simulation));
+
+        const colorScale = d3
+          .scaleOrdinal()
+          .domain([".js", ".ts", ".jsx", ".tsx"])
+          .range(["#f1e05a", "#3178c6", "#61dafb", "#007acc"]);
+
+        nodeGroup
+          .append("circle")
+          .attr("class", "node")
+          .attr("r", (d) => Math.max(6, Math.min(15, Math.sqrt(d.size) / 10)))
+          .attr("fill", (d) =>
+            colorScale(d.label.match(/\.[0-9a-z]+$/i)?.[0] || ".js"),
+          )
+          .on("click", (event, d) => {
+            svg.selectAll(".node").classed("selected", false);
+            svg.selectAll(".link").classed("highlighted", false);
+
+            d3.select(event.currentTarget).classed("selected", true);
+
+            const imports = links.filter((l) => l.source.id === d.id);
+            const importedBy = links.filter((l) => l.target.id === d.id);
+
+            link.classed(
+              "highlighted",
+              (l) => l.source.id === d.id || l.target.id === d.id,
+            );
+
+            detailContent.innerHTML = `
+                        <b>📄 File:</b> ${d.label}<br>
+                        <b>📂 Path:</b> <span style="color:#8b949e">${d.id}</span><br>
+                        <b>📏 Size:</b> ${(d.size / 1024).toFixed(2)} KB<br><br>
+                        <b>📤 Imports (${imports.length}):</b><br>
+                        <span style="color:#8b949e; font-size: 11px;">${imports.map((l) => "→ " + l.target.id).join("<br>") || "None"}</span><br><br>
+                        <b>📥 Imported By (${importedBy.length}):</b><br>
+                        <span style="color:#8b949e; font-size: 11px;">${importedBy.map((l) => "← " + l.source.id).join("<br>") || "None"}</span>
+                    `;
+          });
+
+        nodeGroup
+          .append("text")
+          .attr("class", "node-label")
+          .attr("dy", 20)
+          .text((d) =>
+            d.label.length > 15 ? d.label.substring(0, 12) + "..." : d.label,
+          );
+
+        simulation.on("tick", () => {
+          link
+            .attr("x1", (d) => d.source.x)
+            .attr("y1", (d) => d.source.y)
+            .attr("x2", (d) => d.target.x)
+            .attr("y2", (d) => d.target.y);
+          nodeGroup.attr("transform", (d) => `translate(${d.x},${d.y})`);
+        });
+      }
+
+      function drag(simulation) {
+        function dragstarted(event) {
+          if (!event.active) simulation.alphaTarget(0.3).restart();
+          event.subject.fx = event.subject.x;
+          event.subject.fy = event.subject.y;
+        }
+        function dragged(event) {
+          event.subject.fx = event.x;
+          event.subject.fy = event.y;
+        }
+        function dragended(event) {
+          if (!event.active) simulation.alphaTarget(0);
+          event.subject.fx = null;
+          event.subject.fy = null;
+        }
+        return d3
+          .drag()
+          .on("start", dragstarted)
+          .on("drag", dragged)
+          .on("end", dragended);
+      }
+    </script>
+  </body>
+</html>
