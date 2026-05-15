@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🗺️ RepoTour - Interactive Repository Architecture Mapper
 
 RepoTour is a powerful developer onboarding tool that visualizes GitHub repository architecture through an interactive D3.js force-directed graph. It clones real repositories, analyzes their structure, and displays file dependencies in an intuitive visual format.
@@ -349,3 +350,7 @@ For issues, questions, or suggestions, please open an issue on GitHub.
 **Built with ❤️ for developers by developers**
 
 🌟 Star this repo if you find it useful!
+=======
+# CodeAtlas
+Overcome onboarding paralysis. Turn complex repositories into interactive visual maps to instantly understand file structures and dependencies. Built with IBM Bob
+>>>>>>> 32204c9fcd1b6c8b7c23fcb59df4de4e1230960f
