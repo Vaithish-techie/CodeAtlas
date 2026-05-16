@@ -279,8 +279,25 @@ function buildPromptForIssue(issue, codeSnippet) {
   const filePath = issue.filePath || issue.file;
   const symbol   = issue.symbol || "unknown";
 
-  // Cap snippet to avoid token overruns on very large files
-  const cappedCode = codeSnippet.split("\n").slice(0, 60).join("\n");
+  // Strip any metadata header that extractCodeSnippet() prepends so the AI
+  // receives only real source code — not our own annotation comments.
+  // Patterns to strip (always the first line):
+  //   "// path/to/file  (lines N–M)"     ← specific line window
+  //   "// (No specific line — ..."        ← no line number, first-20-lines fallback
+  const lines = codeSnippet.split("\n");
+  // Matches both header formats produced by extractCodeSnippet():
+  //   "// path/to/file  (lines N–M)"  ← specific line window
+  //   "// (No specific line — ..."     ← first-20-lines fallback
+  if (
+    lines.length > 0 &&
+    (lines[0].match(/^\/\/ .+\(lines \d+/) ||
+      lines[0].startsWith("// (No specific line"))
+  ) {
+    lines.shift();
+  }
+
+  // Cap to 60 lines to stay within token budget
+  const cappedCode = lines.slice(0, 60).join("\n").trim();
 
   const JSON_FORMAT = `Respond with ONLY this JSON (no markdown, no backticks, no extra text):
 {

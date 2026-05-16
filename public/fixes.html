@@ -633,13 +633,13 @@
         // e.g. "// path/to/file  (lines 5–16)" — it's not real source code
         function stripSnippetHeader(text) {
           const lines = text.split("\n");
-          // The header is always the first line and matches one of two patterns:
-          //   "// path  (lines N–M)"           ← when a line number was found
-          //   "// (No specific line reported …" ← when line is "-" or null
+          // Matches both header formats produced by extractCodeSnippet():
+          //   "// path/to/file  (lines N–M)"   ← specific line window
+          //   "// (No specific line — ..."      ← first-20-lines fallback
           if (
             lines.length > 0 &&
             (lines[0].match(/^\/\/ .+\(lines \d+/) ||
-              lines[0].startsWith("// (No specific line reported"))
+              lines[0].startsWith("// (No specific line"))
           ) {
             lines.shift();
           }
