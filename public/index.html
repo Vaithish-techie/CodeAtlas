@@ -942,7 +942,7 @@
         white-space: normal;
         width: 240px;
         z-index: 200;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
         border: 1px solid #334155;
         text-transform: none;
         letter-spacing: normal;
@@ -951,7 +951,7 @@
         pointer-events: none;
       }
       .tooltip-content::after {
-        content: '';
+        content: "";
         position: absolute;
         top: 100%;
         left: 15px;
@@ -970,15 +970,22 @@
     <div id="sidebar">
       <h2>🗺️ RepoTour</h2>
       <p class="subtitle">Interactive codebase architecture mapper</p>
-      <div style="display:flex; gap: 5px; margin-bottom: 10px;">
+      <div style="display: flex; gap: 5px; margin-bottom: 10px">
         <input
           type="text"
           id="repoUrl"
           value="https://github.com/expressjs/express"
           placeholder="https://github.com/user/repo"
-          style="flex: 1;"
+          style="flex: 1"
         />
-        <button id="clearCacheBtn" class="secondary-btn" style="width: auto; padding: 0 10px; margin: 0; font-size: 11px;" title="Clear Cache / New Repo">✕ Clear</button>
+        <button
+          id="clearCacheBtn"
+          class="secondary-btn"
+          style="width: auto; padding: 0 10px; margin: 0; font-size: 11px"
+          title="Clear Cache / New Repo"
+        >
+          ✕ Clear
+        </button>
       </div>
       <button id="analyzeBtn">🔍 Generate Architecture Map</button>
       <button id="healthScanBtn" class="secondary-btn">
@@ -1054,12 +1061,30 @@
         <div class="section">
           <div class="section-title tooltip-trigger">
             COMPLEXITY SCORE
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-left: 4px; opacity: 0.7; cursor: help;">
+            <svg
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              style="
+                display: inline-block;
+                vertical-align: text-bottom;
+                margin-left: 4px;
+                opacity: 0.7;
+                cursor: help;
+              "
+            >
               <circle cx="12" cy="12" r="10"></circle>
               <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
               <line x1="12" y1="17" x2="12.01" y2="17"></line>
             </svg>
-            <div class="tooltip-content">Based on Cyclomatic Complexity: Calculates the number of branches (if/else), loops, nested callbacks, and total lines of code to determine maintainability.</div>
+            <div class="tooltip-content">
+              Based on Cyclomatic Complexity: Calculates the number of branches
+              (if/else), loops, nested callbacks, and total lines of code to
+              determine maintainability.
+            </div>
           </div>
           <div class="complexity-bar-container">
             <div class="complexity-score-text" id="panel-complexity-text">
@@ -1192,6 +1217,7 @@
       let currentData = { nodes: [], links: [] };
       let currentSelectedNode = null;
       let currentRepoPath = null;
+      let currentRepoUrl = null; // Store the GitHub repo URL
       let aiSummaryCache = new Map(); // Cache AI summaries
       let blastRadiusActive = false;
       let affectedNodes = [];
@@ -1358,7 +1384,7 @@
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              repoPath: currentRepoPath,
+              repoUrl: currentRepoUrl,
               filePath: node.id,
             }),
           });
@@ -1796,17 +1822,25 @@
             const data = JSON.parse(cachedData);
             currentData = data;
             currentRepoPath = data.repoPath;
-            
+            currentRepoUrl = data.repoUrl || sessionStorage.getItem("repoUrl");
+
             nodeCountEl.textContent = data.nodes.length;
             linkCountEl.textContent = data.links.length;
             stats.classList.add("visible");
-            
+
             detailContent.innerHTML = `<span class="success-message">✅ Loaded from Cache!</span><br><br>Rendered <b>${data.nodes.length}</b> files and <b>${data.links.length}</b> internal connections.<br><br>💡 <i>Click any node to view details. Drag nodes to reposition. Scroll to zoom.</i>`;
             renderGraph(data.nodes, data.links);
             updateStatsBar(data.nodes, data.links);
           } catch (e) {
             console.error("Failed to parse cached data:", e);
           }
+        }
+
+        const targetRepo = sessionStorage.getItem("targetRepo");
+        if (targetRepo) {
+          document.getElementById("repoUrl").value = targetRepo;
+          sessionStorage.removeItem("targetRepo");
+          btn.click();
         }
       });
 
@@ -1849,9 +1883,11 @@
           const data = await response.json();
           currentData = data;
           currentRepoPath = data.repoPath; // Store repo path for AI analysis
+          currentRepoUrl = url; // Store the GitHub URL
 
           // Save to session storage
           sessionStorage.setItem("repoData", JSON.stringify(data));
+          sessionStorage.setItem("repoUrl", url);
 
           nodeCountEl.textContent = data.nodes.length;
           linkCountEl.textContent = data.links.length;
@@ -2038,11 +2074,11 @@
           .call(drag(simulation));
 
         // 2. Distinct Node Shapes (Visual Hierarchy)
-        nodeGroup.each(function(d) {
+        nodeGroup.each(function (d) {
           const isRoot = d.depth === 0;
           const r = getNodeRadius(d);
           const el = d3.select(this);
-          
+
           if (isRoot) {
             // Render root nodes as a square (rect)
             const size = r * 1.8;
@@ -2213,16 +2249,18 @@
           // Redraw bounding boxes every tick so they track live node positions
           hullGroups.each(function (dir) {
             const groupNodes = dirGroups.get(dir) || [];
-            let validNodes = groupNodes.filter((n) => n.x != null && n.y != null);
+            let validNodes = groupNodes.filter(
+              (n) => n.x != null && n.y != null,
+            );
             if (validNodes.length === 0) return;
 
             const pad = 24; // Base padding
-            
-            let minX = d3.min(validNodes, n => n.x - getNodeRadius(n)) - pad;
-            let maxX = d3.max(validNodes, n => n.x + getNodeRadius(n)) + pad;
-            let minY = d3.min(validNodes, n => n.y - getNodeRadius(n)) - pad;
-            let maxY = d3.max(validNodes, n => n.y + getNodeRadius(n)) + pad;
-            
+
+            let minX = d3.min(validNodes, (n) => n.x - getNodeRadius(n)) - pad;
+            let maxX = d3.max(validNodes, (n) => n.x + getNodeRadius(n)) + pad;
+            let minY = d3.min(validNodes, (n) => n.y - getNodeRadius(n)) - pad;
+            let maxY = d3.max(validNodes, (n) => n.y + getNodeRadius(n)) + pad;
+
             // Header height
             const headerHeight = 20;
             // Expand top for header
@@ -2233,23 +2271,26 @@
 
             const group = d3.select(this);
 
-            group.select(".hull-path")
-                 .attr("x", minX)
-                 .attr("y", minY)
-                 .attr("width", w)
-                 .attr("height", h);
+            group
+              .select(".hull-path")
+              .attr("x", minX)
+              .attr("y", minY)
+              .attr("width", w)
+              .attr("height", h);
 
-            group.select(".hull-header-bg")
-                 .attr("x", minX)
-                 .attr("y", minY)
-                 .attr("width", w)
-                 .attr("height", headerHeight)
-                 .attr("rx", 6) // Matches main rect rx
-                 .style("clip-path", `inset(0px 0px -6px 0px round 6px)`); // Only round top corners visually if possible, or just rx=6 is fine since it's overlaid
+            group
+              .select(".hull-header-bg")
+              .attr("x", minX)
+              .attr("y", minY)
+              .attr("width", w)
+              .attr("height", headerHeight)
+              .attr("rx", 6) // Matches main rect rx
+              .style("clip-path", `inset(0px 0px -6px 0px round 6px)`); // Only round top corners visually if possible, or just rx=6 is fine since it's overlaid
 
-            group.select(".hull-label")
-                 .attr("x", minX + 8)
-                 .attr("y", minY + 14);
+            group
+              .select(".hull-label")
+              .attr("x", minX + 8)
+              .attr("y", minY + 14);
           });
         });
       }

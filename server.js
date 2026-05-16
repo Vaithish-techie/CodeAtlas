@@ -5,15 +5,126 @@ const path = require("path");
 const os = require("os");
 const crypto = require("crypto");
 const { GoogleGenAI } = require("@google/genai");
+const session = require("express-session");
+const passport = require("passport");
+const GitHubStrategy = require("passport-github2").Strategy;
+const { Octokit } = require("@octokit/rest");
 
 require("dotenv").config();
 
 const app = express();
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
-app.use(express.json());
-app.use(express.static("public"));
 
 const PORT = process.env.PORT || 3000;
+
+// GitHub OAuth Configuration
+const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID || "";
+const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET || "";
+const GITHUB_CALLBACK_URL =
+  process.env.GITHUB_CALLBACK_URL ||
+  `http://localhost:${PORT}/auth/github/callback`;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 1. SESSION SETUP
+// ─────────────────────────────────────────────────────────────────────────────
+app.use(
+  session({
+    secret:
+      process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex"),
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    },
+  }),
+);
+
+app.use(express.json());
+app.use(express.static("public", { index: false }));
+
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "landing.html"));
+});
+
+app.get("/app", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 2. PASSPORT CONFIGURATION
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Initialize Passport
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Serialize user into session (store user ID)
+passport.serializeUser((user, done) => {
+  done(null, user);
+});
+
+// Deserialize user from session
+passport.deserializeUser((user, done) => {
+  done(null, user);
+});
+
+// Configure GitHub Strategy
+passport.use(
+  new GitHubStrategy(
+    {
+      clientID: GITHUB_CLIENT_ID,
+      clientSecret: GITHUB_CLIENT_SECRET,
+      callbackURL: GITHUB_CALLBACK_URL,
+      scope: ["repo"], // Request 'repo' scope to read code and create PRs
+    },
+    function (accessToken, refreshToken, profile, done) {
+      // CRITICAL: Capture the accessToken and attach it to the user object
+      // This token will be stored in the session and used for GitHub API calls
+      const user = {
+        id: profile.id,
+        username: profile.username,
+        displayName: profile.displayName,
+        profileUrl: profile.profileUrl,
+        avatar:
+          profile.photos && profile.photos[0] ? profile.photos[0].value : null,
+        accessToken: accessToken, // Store the GitHub access token
+      };
+
+      console.log(
+        `[${new Date().toISOString()}] GitHub OAuth successful: ${user.username}`,
+      );
+
+      // Pass the user object to Passport (will be serialized into session)
+      return done(null, user);
+    },
+  ),
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 4. AUTH MIDDLEWARE
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Middleware to ensure user is authenticated
+ * Checks if req.user exists (set by Passport after successful login)
+ */
+function ensureAuthenticated(req, res, next) {
+  if (req.isAuthenticated()) {
+    return next();
+  }
+
+  // If API request, return JSON error
+  if (req.path.startsWith("/api/")) {
+    return res.status(401).json({
+      error: "Not authenticated. Please connect your GitHub account first.",
+      redirectTo: "/auth/github",
+    });
+  }
+
+  // Otherwise redirect to landing page
+  res.redirect("/landing.html");
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // In-memory state (resets on server restart — fine for hackathon demo)
@@ -825,6 +936,282 @@ app.post("/api/blast-refactor", async (req, res) => {
       error: err.message.includes("Path traversal")
         ? err.message
         : "Refactoring failed.",
+    });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3. AUTH ROUTES (Using Passport.js)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * GET /auth/github
+ * Initiates GitHub OAuth flow
+ * Requests 'repo' scope for reading code and creating PRs
+ */
+app.get("/auth/github", passport.authenticate("github", { scope: ["repo"] }));
+
+/**
+ * GET /auth/github/callback
+ * Handles OAuth callback from GitHub
+ * On success: redirect to dashboard (/)
+ * On failure: redirect to landing page
+ */
+app.get(
+  "/auth/github/callback",
+  passport.authenticate("github", {
+    successRedirect: "/app",
+    failureRedirect: "/",
+  }),
+);
+
+/**
+ * GET /api/session
+ * Returns current authentication status and user info
+ */
+app.get("/api/session", (req, res) => {
+  if (req.isAuthenticated()) {
+    res.json({
+      authenticated: true,
+      user: {
+        id: req.user.id,
+        username: req.user.username,
+        displayName: req.user.displayName,
+        avatar: req.user.avatar,
+      },
+    });
+  } else {
+    res.json({ authenticated: false });
+  }
+});
+
+/**
+ * POST /api/auth/logout
+ * Logs out the user and destroys the session
+ */
+app.post("/api/auth/logout", (req, res) => {
+  req.logout((err) => {
+    if (err) {
+      return res.status(500).json({ error: "Failed to logout" });
+    }
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ error: "Failed to destroy session" });
+      }
+      res.json({ success: true });
+    });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. POST /api/create-pr — Create Pull Request with Modified Files
+// Protected with ensureAuthenticated middleware
+// ─────────────────────────────────────────────────────────────────────────────
+
+app.post("/api/create-pr", ensureAuthenticated, async (req, res) => {
+  const { repoUrl, files, prTitle, prBody } = req.body;
+
+  // Validate input
+  if (!repoUrl || !Array.isArray(files) || files.length === 0) {
+    return res.status(400).json({
+      error: "Missing required fields: repoUrl, files[]",
+    });
+  }
+
+  // Parse GitHub URL
+  const githubMatch = repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+  if (!githubMatch) {
+    return res.status(400).json({ error: "Invalid GitHub repository URL" });
+  }
+
+  const [, owner, repo] = githubMatch;
+  const cleanRepo = repo.replace(/\.git$/, "");
+
+  try {
+    // Initialize Octokit with user's access token from session
+    // req.user.accessToken was stored during OAuth callback
+    const octokit = new Octokit({
+      auth: req.user.accessToken,
+    });
+
+    console.log(
+      `[${new Date().toISOString()}] Creating PR for ${owner}/${cleanRepo}`,
+    );
+
+    // Step 1: Get the default branch and latest commit SHA
+    const { data: repoData } = await octokit.repos.get({
+      owner,
+      repo: cleanRepo,
+    });
+
+    const defaultBranch = repoData.default_branch;
+    console.log(
+      `[${new Date().toISOString()}] Default branch: ${defaultBranch}`,
+    );
+
+    const { data: refData } = await octokit.git.getRef({
+      owner,
+      repo: cleanRepo,
+      ref: `heads/${defaultBranch}`,
+    });
+
+    const latestCommitSha = refData.object.sha;
+    console.log(
+      `[${new Date().toISOString()}] Latest commit SHA: ${latestCommitSha}`,
+    );
+
+    // Step 2: Create a new branch
+    const timestamp = Date.now();
+    const newBranchName = `codeatlas-refactor-${timestamp}`;
+
+    await octokit.git.createRef({
+      owner,
+      repo: cleanRepo,
+      ref: `refs/heads/${newBranchName}`,
+      sha: latestCommitSha,
+    });
+
+    console.log(
+      `[${new Date().toISOString()}] Created branch: ${newBranchName}`,
+    );
+
+    // Step 3: Get the tree SHA of the latest commit
+    const { data: commitData } = await octokit.git.getCommit({
+      owner,
+      repo: cleanRepo,
+      commit_sha: latestCommitSha,
+    });
+
+    const baseTreeSha = commitData.tree.sha;
+
+    // Step 4: Create blobs for each modified file
+    const treeItems = [];
+
+    for (const file of files) {
+      if (!file.path || !file.content) {
+        console.warn(`Skipping invalid file:`, file);
+        continue;
+      }
+
+      // Create blob
+      const { data: blobData } = await octokit.git.createBlob({
+        owner,
+        repo: cleanRepo,
+        content: Buffer.from(file.content).toString("base64"),
+        encoding: "base64",
+      });
+
+      treeItems.push({
+        path: file.path,
+        mode: "100644", // Regular file
+        type: "blob",
+        sha: blobData.sha,
+      });
+
+      console.log(
+        `[${new Date().toISOString()}] Created blob for: ${file.path}`,
+      );
+    }
+
+    // Step 5: Create a new tree
+    const { data: newTree } = await octokit.git.createTree({
+      owner,
+      repo: cleanRepo,
+      base_tree: baseTreeSha,
+      tree: treeItems,
+    });
+
+    console.log(`[${new Date().toISOString()}] Created tree: ${newTree.sha}`);
+
+    // Step 6: Create a commit
+    const commitMessage = prTitle || "✨ CodeAtlas Auto-Refactor";
+    const { data: newCommit } = await octokit.git.createCommit({
+      owner,
+      repo: cleanRepo,
+      message: commitMessage,
+      tree: newTree.sha,
+      parents: [latestCommitSha],
+    });
+
+    console.log(
+      `[${new Date().toISOString()}] Created commit: ${newCommit.sha}`,
+    );
+
+    // Step 7: Update the branch reference
+    await octokit.git.updateRef({
+      owner,
+      repo: cleanRepo,
+      ref: `heads/${newBranchName}`,
+      sha: newCommit.sha,
+    });
+
+    console.log(`[${new Date().toISOString()}] Updated branch reference`);
+
+    // Step 8: Create Pull Request
+    const prDescription =
+      prBody ||
+      `## 🤖 CodeAtlas Auto-Refactor
+
+This pull request was automatically generated by CodeAtlas AI.
+
+### Modified Files
+${files.map((f) => `- \`${f.path}\``).join("\n")}
+
+### Changes
+${files.length} file(s) have been refactored to improve code quality, reduce complexity, or fix detected issues.
+
+---
+*Generated by [CodeAtlas](https://github.com/your-org/codeatlas) - AI-Powered Codebase Architecture Mapper*`;
+
+    const { data: pullRequest } = await octokit.pulls.create({
+      owner,
+      repo: cleanRepo,
+      title: commitMessage,
+      head: newBranchName,
+      base: defaultBranch,
+      body: prDescription,
+    });
+
+    console.log(
+      `[${new Date().toISOString()}] Created PR #${pullRequest.number}`,
+    );
+
+    res.json({
+      success: true,
+      pullRequest: {
+        number: pullRequest.number,
+        url: pullRequest.html_url,
+        title: pullRequest.title,
+        branch: newBranchName,
+      },
+    });
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] PR creation error:`, error);
+
+    // Handle specific GitHub API errors
+    if (error.status === 401) {
+      return res.status(401).json({
+        error: "GitHub authentication expired. Please reconnect.",
+        redirectTo: "/auth/github",
+      });
+    }
+
+    if (error.status === 403) {
+      return res.status(403).json({
+        error:
+          "Insufficient permissions. Make sure you have write access to this repository.",
+      });
+    }
+
+    if (error.status === 404) {
+      return res.status(404).json({
+        error: "Repository not found or you don't have access to it.",
+      });
+    }
+
+    res.status(500).json({
+      error: "Failed to create pull request",
+      details: error.message,
     });
   }
 });
