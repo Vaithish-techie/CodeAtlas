@@ -958,15 +958,51 @@
         ).toLocaleString();
 
         // ── Issues list ────────────────────────────────────────────────────
-        renderIssues(data.files);
+        renderIssues(data.files, data.summary.totalIssues);
       }
 
       // ── Render helpers ────────────────────────────────────────────────────
 
-      function renderIssues(files) {
+      const ISSUES_PER_PAGE = 50;
+
+      function renderIssues(files, totalIssues) {
         const issuesListEl = document.getElementById("issuesList");
         issuesListEl.innerHTML = "";
 
+        // ── Zero State: Perfect Repository ────────────────────────────────
+        if (totalIssues === 0) {
+          issuesListEl.innerHTML = `
+            <div style="
+              text-align: center;
+              padding: 60px 40px;
+              background: linear-gradient(135deg, rgba(46, 160, 67, 0.1) 0%, rgba(46, 160, 67, 0.05) 100%);
+              border: 2px solid rgba(46, 160, 67, 0.3);
+              border-radius: 12px;
+              margin: 20px 0;
+            ">
+              <div style="font-size: 72px; margin-bottom: 20px;">🏆</div>
+              <div style="
+                font-size: 28px;
+                font-weight: 700;
+                color: #3fb950;
+                margin-bottom: 12px;
+              ">100% Healthy Codebase!</div>
+              <div style="
+                font-size: 16px;
+                color: #8b949e;
+                line-height: 1.6;
+                max-width: 500px;
+                margin: 0 auto;
+              ">
+                No dead code, missing tests, or documentation gaps found.
+                Your repository follows best practices and maintains excellent code quality.
+              </div>
+            </div>
+          `;
+          return;
+        }
+
+        // ── Normal State: Render Issues with Pagination ───────────────────
         if (!files || files.length === 0) {
           issuesListEl.innerHTML = `
             <div style="text-align: center; padding: 40px; color: #8b949e;">
@@ -978,16 +1014,41 @@
           return;
         }
 
+        // Flatten all issues with their file paths for pagination
+        const allIssues = [];
         files.forEach((file) => {
+          file.issues.forEach((issue) => {
+            allIssues.push({ ...issue, filePath: file.path });
+          });
+        });
+
+        // Track visible issues count
+        let visibleCount = 0;
+        const maxVisible = ISSUES_PER_PAGE;
+
+        // Group issues by file for rendering
+        const fileMap = new Map();
+        allIssues.forEach((issue, index) => {
+          if (!fileMap.has(issue.filePath)) {
+            fileMap.set(issue.filePath, []);
+          }
+          fileMap.get(issue.filePath).push({ ...issue, globalIndex: index });
+        });
+
+        // Render each file group
+        fileMap.forEach((issues, filePath) => {
           const fileGroupEl = document.createElement("div");
           fileGroupEl.className = "file-group";
 
           const filePathEl = document.createElement("div");
           filePathEl.className = "file-path";
-          filePathEl.textContent = file.path;
+          filePathEl.textContent = filePath;
           fileGroupEl.appendChild(filePathEl);
 
-          file.issues.forEach((issue) => {
+          issues.forEach((issue) => {
+            // Check if we should hide this issue initially
+            const shouldHide = issue.globalIndex >= maxVisible;
+
             // ── Compact single-line row ──────────────────────────────────────
             const lineInfo = issue.line ? `Line ${issue.line}` : "-";
             const symbolInfo = issue.symbol || "-";
@@ -995,6 +1056,10 @@
 
             const rowEl = document.createElement("div");
             rowEl.className = `issue-row sev-${issue.severity}`;
+            if (shouldHide) {
+              rowEl.style.display = "none";
+              rowEl.classList.add("hidden-issue");
+            }
             rowEl.innerHTML =
               `<span class="severity-badge ${issue.severity}">${issue.severity}</span>` +
               `<span class="issue-type">${typeLabel}</span>` +
@@ -1009,6 +1074,10 @@
             if (issue.bobSummary) {
               const aiEl = document.createElement("div");
               aiEl.className = "issue-ai";
+              if (shouldHide) {
+                aiEl.style.display = "none";
+                aiEl.classList.add("hidden-issue");
+              }
               aiEl.innerHTML = `
                 <div class="issue-ai-header">
                   <span class="issue-ai-icon">AI</span>
@@ -1018,10 +1087,57 @@
               `;
               fileGroupEl.appendChild(aiEl);
             }
+
+            if (!shouldHide) {
+              visibleCount++;
+            }
           });
 
           issuesListEl.appendChild(fileGroupEl);
         });
+
+        // ── Add "Load More" button if needed ──────────────────────────────
+        if (allIssues.length > maxVisible) {
+          const loadMoreContainer = document.createElement("div");
+          loadMoreContainer.style.cssText = `
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #30363d;
+          `;
+
+          const hiddenCount = allIssues.length - maxVisible;
+          loadMoreContainer.innerHTML = `
+            <button id="loadMoreBtn" style="
+              padding: 12px 24px;
+              background: #21262d;
+              color: #58a6ff;
+              border: 1px solid #30363d;
+              border-radius: 6px;
+              font-size: 14px;
+              font-weight: 600;
+              cursor: pointer;
+              transition: all 0.2s;
+            " onmouseover="this.style.background='#30363d'; this.style.borderColor='#58a6ff';"
+               onmouseout="this.style.background='#21262d'; this.style.borderColor='#30363d';">
+              Load More Issues (${hiddenCount} remaining)
+            </button>
+          `;
+
+          issuesListEl.appendChild(loadMoreContainer);
+
+          // Add click handler
+          document
+            .getElementById("loadMoreBtn")
+            .addEventListener("click", function () {
+              const hiddenIssues = document.querySelectorAll(".hidden-issue");
+              hiddenIssues.forEach((el) => {
+                el.style.display = "";
+                el.classList.remove("hidden-issue");
+              });
+              loadMoreContainer.remove();
+            });
+        }
       }
     </script>
   </body>

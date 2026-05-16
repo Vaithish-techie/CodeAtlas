@@ -572,21 +572,50 @@ app.post("/api/health-scan", async (req, res) => {
     });
   }
 
+  // Security: Prevent path traversal attacks
+  // Ensure the path is absolute and strictly within the system's temp directory
+  const tmpDir = os.tmpdir();
+  const normalizedPath = path.normalize(repoPath);
+  const normalizedTmpDir = path.normalize(tmpDir);
+
+  if (!path.isAbsolute(normalizedPath)) {
+    return res.status(403).json({
+      error: "Forbidden",
+      message: "Repository path must be an absolute path.",
+    });
+  }
+
+  if (!normalizedPath.startsWith(normalizedTmpDir)) {
+    return res.status(403).json({
+      error: "Forbidden",
+      message:
+        "Repository path must be within the system's temporary directory.",
+    });
+  }
+
+  // Additional check: prevent path traversal with .. segments
+  if (normalizedPath.includes("..")) {
+    return res.status(403).json({
+      error: "Forbidden",
+      message: "Repository path contains invalid traversal sequences.",
+    });
+  }
+
   // Verify the path actually exists on disk
-  if (!fs.existsSync(repoPath)) {
+  if (!fs.existsSync(normalizedPath)) {
     return res.status(404).json({
       error: "Repository path not found",
-      message: `No directory exists at: ${repoPath}. Re-analyse the repository to get a fresh path.`,
+      message: `No directory exists at: ${normalizedPath}. Re-analyse the repository to get a fresh path.`,
     });
   }
 
   try {
     console.log(
-      `[${new Date().toISOString()}] POST /api/health-scan — path: ${repoPath}`,
+      `[${new Date().toISOString()}] POST /api/health-scan — path: ${normalizedPath}`,
     );
 
     // Run all 3 scanners in parallel via the orchestrator
-    const scanResult = await runHealthScan(repoPath);
+    const scanResult = await runHealthScan(normalizedPath);
 
     // Enrich the top-5 issues with Groq explanations (non-blocking on failure)
     if (process.env.GROQ_API_KEY) {

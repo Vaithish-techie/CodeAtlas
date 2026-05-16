@@ -13,6 +13,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const ignore = require("ignore");
 
 // Hard cap on reported issues so the UI doesn't get overwhelmed
 const MAX_ISSUES = 20;
@@ -45,15 +46,22 @@ function isTestFile(relPath) {
   // Any segment named __tests__ or spec or test (directory convention)
   const segments = relPath.split("/");
   for (const seg of segments) {
-    if (seg === "__tests__" || seg === "test" || seg === "tests" || seg === "spec") {
+    if (
+      seg === "__tests__" ||
+      seg === "test" ||
+      seg === "tests" ||
+      seg === "spec"
+    ) {
       return true;
     }
   }
 
   // Filename-level: *.test.*, *.spec.*, *-test.*, *_spec.*
   const filename = segments[segments.length - 1];
-  return /\.(test|spec)\.(js|ts|jsx|tsx)$/.test(filename) ||
-    /[-_](test|spec)\.(js|ts|jsx|tsx)$/.test(filename);
+  return (
+    /\.(test|spec)\.(js|ts|jsx|tsx)$/.test(filename) ||
+    /[-_](test|spec)\.(js|ts|jsx|tsx)$/.test(filename)
+  );
 }
 
 /**
@@ -64,8 +72,9 @@ function isTestFile(relPath) {
  * @param {string} repoRoot   - Absolute repo root (for computing relative paths)
  * @param {string[]} sourceFiles
  * @param {string[]} testFiles
+ * @param {Object|null} ig    - ignore instance (from .gitignore) or null
  */
-function walk(dir, repoRoot, sourceFiles, testFiles) {
+function walk(dir, repoRoot, sourceFiles, testFiles, ig) {
   let entries;
   try {
     entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -77,9 +86,14 @@ function walk(dir, repoRoot, sourceFiles, testFiles) {
     const absPath = path.join(dir, entry.name);
     const relPath = path.relative(repoRoot, absPath).replace(/\\/g, "/");
 
+    // Check .gitignore rules if available
+    if (ig && ig.ignores(relPath)) {
+      continue;
+    }
+
     if (entry.isDirectory()) {
       if (SKIP_DIRS.has(entry.name)) continue;
-      walk(absPath, repoRoot, sourceFiles, testFiles);
+      walk(absPath, repoRoot, sourceFiles, testFiles, ig);
     } else if (entry.isFile()) {
       const ext = path.extname(entry.name);
       if (!SOURCE_EXTS.has(ext)) continue;
@@ -134,12 +148,17 @@ function hasMatchingTest(sourceStem, sourceRelPath, testFiles) {
     // Check the test file's path segments for the stem
     // Use word-boundary-style matching to avoid false positives
     // e.g. stem "auth" should match "auth.test.js" but not "authorization.test.js"
-    const regex = new RegExp(`(^|[\\/._-])${escapeRegex(stemLower)}([\\/._-]|$)`);
+    const regex = new RegExp(
+      `(^|[\\/._-])${escapeRegex(stemLower)}([\\/._-]|$)`,
+    );
     if (regex.test(tfLower)) return true;
 
     // Also allow: source path is fully contained in test path
     // e.g. source "src/utils/auth.js" → test "src/utils/__tests__/auth.test.js"
-    const sourceDir = sourceRelPath.substring(0, sourceRelPath.lastIndexOf("/"));
+    const sourceDir = sourceRelPath.substring(
+      0,
+      sourceRelPath.lastIndexOf("/"),
+    );
     if (sourceDir && tfLower.includes(sourceDir.toLowerCase())) {
       // Within the same directory scope, check the stem
       if (tfLower.includes(stemLower)) return true;
@@ -165,13 +184,26 @@ async function scanTestGaps(repoPath) {
   try {
     console.log(`[TestGaps] Starting filesystem walk on: ${repoPath}`);
 
+    // Load .gitignore if it exists
+    let ig = null;
+    const gitignorePath = path.join(repoPath, ".gitignore");
+    if (fs.existsSync(gitignorePath)) {
+      try {
+        const gitignoreContent = fs.readFileSync(gitignorePath, "utf-8");
+        ig = ignore().add(gitignoreContent);
+        console.log(`[TestGaps] Loaded .gitignore rules`);
+      } catch (err) {
+        console.warn(`[TestGaps] Failed to read .gitignore: ${err.message}`);
+      }
+    }
+
     const sourceFiles = [];
     const testFiles = [];
 
-    walk(repoPath, repoPath, sourceFiles, testFiles);
+    walk(repoPath, repoPath, sourceFiles, testFiles, ig);
 
     console.log(
-      `[TestGaps] Found ${sourceFiles.length} source files, ${testFiles.length} test files`
+      `[TestGaps] Found ${sourceFiles.length} source files, ${testFiles.length} test files`,
     );
 
     for (const relPath of sourceFiles) {
@@ -194,11 +226,11 @@ async function scanTestGaps(repoPath) {
 
     console.log(
       `[TestGaps] Issues reported: ${issues.length}` +
-        (issues.length === MAX_ISSUES ? ` (capped at ${MAX_ISSUES})` : "")
+        (issues.length === MAX_ISSUES ? ` (capped at ${MAX_ISSUES})` : ""),
     );
   } catch (err) {
     console.warn(
-      `[TestGaps] Scanner failed — returning empty results. Reason: ${err.message}`
+      `[TestGaps] Scanner failed — returning empty results. Reason: ${err.message}`,
     );
   }
 

@@ -12,8 +12,9 @@
  *   { type, severity, filePath, line, symbol, description, bobSummary }
  */
 
-const fs   = require("fs");
+const fs = require("fs");
 const path = require("path");
+const ignore = require("ignore");
 
 // Hard cap on reported issues
 const MAX_ISSUES = 15;
@@ -98,8 +99,9 @@ function hasJSDoc(lines, exportIndex) {
  * @param {string}   dir      - Absolute directory to walk
  * @param {string}   repoRoot - Absolute repo root
  * @param {string[]} out      - Collector for relative paths
+ * @param {Object|null} ig    - ignore instance (from .gitignore) or null
  */
-function walk(dir, repoRoot, out) {
+function walk(dir, repoRoot, out, ig) {
   let entries;
   try {
     entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -109,10 +111,16 @@ function walk(dir, repoRoot, out) {
 
   for (const entry of entries) {
     const absPath = path.join(dir, entry.name);
+    const relPath = path.relative(repoRoot, absPath).replace(/\\/g, "/");
+
+    // Check .gitignore rules if available
+    if (ig && ig.ignores(relPath)) {
+      continue;
+    }
 
     if (entry.isDirectory()) {
       if (SKIP_DIRS.has(entry.name)) continue;
-      walk(absPath, repoRoot, out);
+      walk(absPath, repoRoot, out, ig);
     } else if (entry.isFile()) {
       const ext = path.extname(entry.name);
       if (!SOURCE_EXTS.has(ext)) continue;
@@ -121,7 +129,6 @@ function walk(dir, repoRoot, out) {
       if (/\.(test|spec)\.(js|ts|jsx|tsx)$/.test(entry.name)) continue;
       if (/[-_](test|spec)\.(js|ts|jsx|tsx)$/.test(entry.name)) continue;
 
-      const relPath = path.relative(repoRoot, absPath).replace(/\\/g, "/");
       out.push(relPath);
     }
   }
@@ -160,7 +167,10 @@ function analyseFile(absPath, relPath, budget) {
       filePath: relPath,
       line: lineNumber,
       symbol,
-      description: "Exported symbol '" + symbol + "' has no JSDoc. Add a /** ... */ block immediately above the export so tools and teammates understand its purpose.",
+      description:
+        "Exported symbol '" +
+        symbol +
+        "' has no JSDoc. Add a /** ... */ block immediately above the export so tools and teammates understand its purpose.",
       bobSummary: null,
     });
   }
@@ -169,7 +179,10 @@ function analyseFile(absPath, relPath, budget) {
   {
     let m;
     ES_EXPORT_RE.lastIndex = 0;
-    while ((m = ES_EXPORT_RE.exec(content)) !== null && issues.length < budget) {
+    while (
+      (m = ES_EXPORT_RE.exec(content)) !== null &&
+      issues.length < budget
+    ) {
       const symbol = m[3];
       const lineIndex = content.slice(0, m.index).split("\n").length - 1;
       if (!hasJSDoc(lines, lineIndex)) {
@@ -182,12 +195,19 @@ function analyseFile(absPath, relPath, budget) {
   {
     let m;
     CJS_EXPORTS_OBJECT_RE.lastIndex = 0;
-    while ((m = CJS_EXPORTS_OBJECT_RE.exec(content)) !== null && issues.length < budget) {
+    while (
+      (m = CJS_EXPORTS_OBJECT_RE.exec(content)) !== null &&
+      issues.length < budget
+    ) {
       const lineIndex = content.slice(0, m.index).split("\n").length - 1;
       const names = m[1]
         .split(",")
-        .map(function(s) { return s.trim().split(":")[0].trim(); })
-        .filter(function(s) { return /^\w+$/.test(s); });
+        .map(function (s) {
+          return s.trim().split(":")[0].trim();
+        })
+        .filter(function (s) {
+          return /^\w+$/.test(s);
+        });
 
       for (let ni = 0; ni < names.length; ni++) {
         if (issues.length >= budget) break;
@@ -202,7 +222,10 @@ function analyseFile(absPath, relPath, budget) {
   {
     let m;
     CJS_EXPORTS_PROP_RE.lastIndex = 0;
-    while ((m = CJS_EXPORTS_PROP_RE.exec(content)) !== null && issues.length < budget) {
+    while (
+      (m = CJS_EXPORTS_PROP_RE.exec(content)) !== null &&
+      issues.length < budget
+    ) {
       const symbol = m[1];
       const lineIndex = content.slice(0, m.index).split("\n").length - 1;
       if (!hasJSDoc(lines, lineIndex)) {
@@ -230,27 +253,44 @@ async function scanDocGaps(repoPath) {
   try {
     console.log("[DocGaps] Starting scan on: " + repoPath);
 
+    // Load .gitignore if it exists
+    let ig = null;
+    const gitignorePath = path.join(repoPath, ".gitignore");
+    if (fs.existsSync(gitignorePath)) {
+      try {
+        const gitignoreContent = fs.readFileSync(gitignorePath, "utf-8");
+        ig = ignore().add(gitignoreContent);
+        console.log("[DocGaps] Loaded .gitignore rules");
+      } catch (err) {
+        console.warn("[DocGaps] Failed to read .gitignore: " + err.message);
+      }
+    }
+
     const sourceFiles = [];
-    walk(repoPath, repoPath, sourceFiles);
+    walk(repoPath, repoPath, sourceFiles, ig);
 
     console.log("[DocGaps] Source files to analyse: " + sourceFiles.length);
 
     for (let i = 0; i < sourceFiles.length; i++) {
       if (issues.length >= MAX_ISSUES) break;
 
-      const relPath   = sourceFiles[i];
-      const absPath   = path.join(repoPath, relPath);
-      const budget    = MAX_ISSUES - issues.length;
+      const relPath = sourceFiles[i];
+      const absPath = path.join(repoPath, relPath);
+      const budget = MAX_ISSUES - issues.length;
       const fileIssues = analyseFile(absPath, relPath, budget);
       for (let j = 0; j < fileIssues.length; j++) {
         issues.push(fileIssues[j]);
       }
     }
 
-    const cappedMsg = issues.length === MAX_ISSUES ? " (capped at " + MAX_ISSUES + ")" : "";
+    const cappedMsg =
+      issues.length === MAX_ISSUES ? " (capped at " + MAX_ISSUES + ")" : "";
     console.log("[DocGaps] Issues reported: " + issues.length + cappedMsg);
   } catch (err) {
-    console.warn("[DocGaps] Scanner failed - returning empty results. Reason: " + err.message);
+    console.warn(
+      "[DocGaps] Scanner failed - returning empty results. Reason: " +
+        err.message,
+    );
   }
 
   return issues;
