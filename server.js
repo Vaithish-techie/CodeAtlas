@@ -3,6 +3,7 @@ const { execSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
+const crypto = require("crypto");
 const { GoogleGenAI } = require("@google/genai");
 
 // Load environment variables
@@ -22,21 +23,36 @@ app.post("/api/ingest", (req, res) => {
     return res.status(400).json({ error: "repoUrl is required" });
   }
 
-  if (!repoUrl.match(/^https?:\/\/(www\.)?github\.com\/[\w-]+\/[\w.-]+/)) {
-    return res.status(400).json({ error: "Invalid GitHub repository URL" });
+  // 1. Strict URL Sanitization to prevent Command Injection
+  const githubRegex = /^https?:\/\/(www\.)?github\.com\/[\w-]+\/[\w.-]+$/;
+  if (!githubRegex.test(repoUrl)) {
+    return res.status(400).json({ error: "Invalid strictly formatted GitHub repository URL" });
   }
 
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "repotour-"));
+  // 3. Cloud-Safe Temp Storage (Guaranteed /tmp partition with UUID)
+  const tmpBase = os.tmpdir() === '/' ? '/tmp' : os.tmpdir();
+  const tmpDir = path.join(tmpBase, `repotour-${crypto.randomUUID()}`);
+  fs.mkdirSync(tmpDir, { recursive: true });
 
   console.log(`[${new Date().toISOString()}] Starting analysis of ${repoUrl}`);
-  console.log(`[${new Date().toISOString()}] Temporary directory: ${tmpDir}`);
+  console.log(`[${new Date().toISOString()}] Allocated temporary directory: ${tmpDir}`);
 
   try {
     console.log(`[${new Date().toISOString()}] Cloning repository...`);
-    execSync(`git clone --depth 1 "${repoUrl}" "${tmpDir}"`, {
-      stdio: "ignore",
-      timeout: 60000,
-    });
+    
+    // 2. Process Timeouts (45 seconds strict limit)
+    try {
+      execSync(`git clone --depth 1 "${repoUrl}" "${tmpDir}"`, {
+        stdio: "ignore",
+        timeout: 45000, 
+      });
+    } catch (cloneErr) {
+      if (cloneErr.code === 'ETIMEDOUT' || cloneErr.signal === 'SIGTERM') {
+        return res.status(408).json({ error: "Repository clone timed out after 45 seconds. The repository is too large." });
+      }
+      throw cloneErr; // Let the general error handler catch authentication/not-found issues
+    }
+
     console.log(`[${new Date().toISOString()}] Clone completed successfully`);
 
     const nodes = [];
@@ -90,9 +106,7 @@ app.post("/api/ingest", (req, res) => {
 
     console.log(`[${new Date().toISOString()}] Analyzing file structure...`);
     walk(tmpDir);
-    console.log(
-      `[${new Date().toISOString()}] Found ${fileMap.size} files to analyze`,
-    );
+    console.log(`[${new Date().toISOString()}] Found ${fileMap.size} files to analyze`);
 
     // Cognitive Complexity Scoring Function
     function computeCognitiveComplexity(fileContent) {
@@ -267,7 +281,7 @@ app.post("/api/ingest", (req, res) => {
       `[${new Date().toISOString()}] Analysis complete: ${nodes.length} nodes, ${totalLinks} links`,
     );
 
-    // Return nodes, links, and the temp directory path for AI analysis
+    // Return nodes, links, and the temp directory path
     res.json({ nodes, links, repoPath: tmpDir });
   } catch (error) {
     console.error(
@@ -283,21 +297,21 @@ app.post("/api/ingest", (req, res) => {
     ) {
       errorMessage =
         "Repository not found. Please check the URL and ensure it is public.";
-    } else if (error.message.includes("timeout")) {
-      errorMessage =
-        "Repository clone timed out. The repository may be too large.";
     } else if (error.message.includes("Authentication")) {
       errorMessage = "Repository is private or requires authentication.";
     }
 
     res.status(500).json({ error: errorMessage });
   } finally {
-    // Note: We're NOT cleaning up tmpDir immediately anymore
-    // It needs to persist for AI file analysis via /api/file-summary
-    // In production, implement a cleanup job that removes directories older than 1 hour
-    console.log(
-      `[${new Date().toISOString()}] Temporary directory preserved for AI analysis: ${tmpDir}`,
-    );
+    // 4. Failsafe Teardown: Guarantee disk space is freed
+    try {
+      if (fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true, maxRetries: 3 });
+        console.log(`[${new Date().toISOString()}] Cleaned up temporary directory: ${tmpDir}`);
+      }
+    } catch (cleanupErr) {
+      console.error(`[${new Date().toISOString()}] CRITICAL: Failed to clean up ${tmpDir}`, cleanupErr.message);
+    }
   }
 });
 
@@ -359,8 +373,8 @@ app.post("/api/file-summary", async (req, res) => {
     const userPrompt = `File: ${filePath}\n\nContent:\n${fileContent.substring(0, 8000)}`; // Limit to 8000 chars
 
     // Call Gemini API
-    const result = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+    const result = await genAI.models.generateContent({
+      model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
       contents: `${systemPrompt}\n\n${userPrompt}`,
     });
     const responseText = result.text;
@@ -405,6 +419,236 @@ app.post("/api/file-summary", async (req, res) => {
     });
   }
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/analyze-file
+// Real Gemini-powered analysis: returns { aiSummary, complexityReason }
+// Body: { repoPath: string, filePath: string }
+// ─────────────────────────────────────────────────────────────────────────────
+app.post("/api/analyze-file", async (req, res) => {
+  const { repoPath, filePath } = req.body;
+
+  // ── Validate required fields ──────────────────────────────────────────────
+  if (!repoPath || !filePath) {
+    return res.status(400).json({
+      error: "Both repoPath and filePath are required.",
+    });
+  }
+
+  // ── Security: prevent path traversal ─────────────────────────────────────
+  // Resolve the absolute target and confirm it is still inside repoPath
+  const safeRepo = path.resolve(repoPath);
+  const safeTarget = path.resolve(safeRepo, filePath);
+  if (!safeTarget.startsWith(safeRepo + path.sep) && safeTarget !== safeRepo) {
+    return res.status(403).json({ error: "Access denied: path traversal detected." });
+  }
+
+  // ── Check API key ─────────────────────────────────────────────────────────
+  if (!process.env.GEMINI_API_KEY) {
+    return res.status(503).json({
+      error: "GEMINI_API_KEY is not configured on the server.",
+    });
+  }
+
+  try {
+    // ── Read file ──────────────────────────────────────────────────────────
+    if (!fs.existsSync(safeTarget)) {
+      return res.status(404).json({ error: `File not found: ${filePath}` });
+    }
+
+    const stat = fs.statSync(safeTarget);
+    const MAX_BYTES = 50 * 1024; // 50 KB hard cap
+    if (stat.size > MAX_BYTES) {
+      return res.status(413).json({
+        error: `File is too large for analysis (${(stat.size / 1024).toFixed(1)} KB). Limit is 50 KB.`,
+      });
+    }
+
+    const rawContent = fs.readFileSync(safeTarget, "utf-8");
+
+    console.log(
+      `[${new Date().toISOString()}] /api/analyze-file → ${filePath} (${stat.size} bytes)`,
+    );
+
+    // ── Build Gemini prompt ────────────────────────────────────────────────
+    const SYSTEM_PROMPT =
+      "You are an expert MERN stack architect. Read the provided file content. " +
+      "Return ONLY a JSON object with two keys: " +
+      "'aiSummary' (a 2-sentence explanation of what this file actually does in the system) " +
+      "and 'complexityReason' (a 1-sentence explanation of why this file might be complex, " +
+      "referencing specific things like deep nesting, large switch statements, or heavy DB usage).";
+
+    const USER_PROMPT =
+      `File path: ${filePath}\n\n` +
+      `Content:\n${rawContent.substring(0, 12000)}`; // ~3k tokens max
+
+    // ── Call Gemini ────────────────────────────────────────────────────────
+    const result = await genAI.models.generateContent({
+      model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+      contents: `${SYSTEM_PROMPT}\n\n${USER_PROMPT}`,
+    });
+
+    const rawText = (result.text || "").trim();
+
+    // ── Parse JSON response ────────────────────────────────────────────────
+    // Gemini sometimes wraps output in markdown fences — strip them
+    const cleaned = rawText
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/\s*```$/i, "")
+      .trim();
+
+    let parsed;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch {
+      console.error(`[${new Date().toISOString()}] Gemini returned non-JSON:\n${rawText}`);
+      return res.status(502).json({
+        error: "AI returned an unexpected format. Please try again.",
+        raw: rawText.substring(0, 300), // partial preview for debugging
+      });
+    }
+
+    // ── Validate shape ─────────────────────────────────────────────────────
+    if (typeof parsed.aiSummary !== "string" || typeof parsed.complexityReason !== "string") {
+      return res.status(502).json({
+        error: "AI response is missing required fields (aiSummary, complexityReason).",
+      });
+    }
+
+    console.log(`[${new Date().toISOString()}] /api/analyze-file → success for ${filePath}`);
+
+    return res.json({
+      aiSummary: parsed.aiSummary.trim(),
+      complexityReason: parsed.complexityReason.trim(),
+      filePath,
+    });
+  } catch (err) {
+    console.error(`[${new Date().toISOString()}] /api/analyze-file error:`, err.message);
+
+    // Surface a clean error — never leak full stack to client
+    return res.status(500).json({
+      error: "AI analysis failed. Please try again in a moment.",
+    });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/blast-refactor
+// Agentic multi-file refactoring tool.
+// Body: { repoPath: string, targetFile: string, dependentFiles: string[], instruction: string }
+// ─────────────────────────────────────────────────────────────────────────────
+app.post("/api/blast-refactor", async (req, res) => {
+  const { repoPath, targetFile, dependentFiles, instruction } = req.body;
+
+  if (!repoPath || !targetFile || !Array.isArray(dependentFiles) || !instruction) {
+    return res.status(400).json({
+      error: "Missing required fields: repoPath, targetFile, dependentFiles (array), or instruction.",
+    });
+  }
+
+  // Security: Prevent path traversal
+  const safeRepo = path.resolve(repoPath);
+  
+  const resolveSafe = (filePath) => {
+    const safeTarget = path.resolve(safeRepo, filePath);
+    if (!safeTarget.startsWith(safeRepo + path.sep) && safeTarget !== safeRepo) {
+      throw new Error(`Path traversal detected: ${filePath}`);
+    }
+    return safeTarget;
+  };
+
+  if (!process.env.GEMINI_API_KEY) {
+    return res.status(503).json({ error: "GEMINI_API_KEY is not configured." });
+  }
+
+  try {
+    const allFiles = [targetFile, ...dependentFiles];
+    let combinedContent = "";
+
+    // Read all files securely
+    for (const filePath of allFiles) {
+      const absolutePath = resolveSafe(filePath);
+      if (!fs.existsSync(absolutePath)) {
+        console.warn(`[WARNING] File not found for refactor: ${filePath}`);
+        continue;
+      }
+      
+      const stat = fs.statSync(absolutePath);
+      // Skip excessively large files to avoid blowing up the token window
+      if (stat.size > 80 * 1024) {
+        console.warn(`[WARNING] Skipping large file: ${filePath} (${stat.size} bytes)`);
+        continue;
+      }
+
+      const content = fs.readFileSync(absolutePath, "utf-8");
+      combinedContent += `\n--- BEGIN FILE: ${filePath} ---\n${content}\n--- END FILE: ${filePath} ---\n`;
+    }
+
+    if (!combinedContent) {
+      return res.status(400).json({ error: "No valid files could be read for refactoring." });
+    }
+
+    // Prepare Prompt
+    const SYSTEM_PROMPT = `You are an Agentic Refactoring Engine. The user is modifying a core file. You must rewrite the core file based on their instruction, AND you must rewrite all dependent files so they do not break. Output ONLY a valid JSON object.
+The JSON object MUST follow this exact format:
+{
+  "files": [
+    {
+      "path": "path/to/file.js",
+      "newCode": "the complete rewritten code for this file"
+    }
+  ]
+}
+Do not include any markdown fences outside the JSON object. Do not explain your changes. Only output the JSON.`;
+
+    const USER_PROMPT = `Target File to Refactor: ${targetFile}
+Dependent Files that might need updates: ${dependentFiles.join(", ")}
+User Instruction: ${instruction}
+
+File Contents:
+${combinedContent}`;
+
+    // Call Gemini API
+    const result = await genAI.models.generateContent({
+      model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+      contents: `${SYSTEM_PROMPT}\n\n${USER_PROMPT}`,
+      config: {
+          temperature: 0.2
+      }
+    });
+
+    const rawText = (result.text || "").trim();
+
+    // Parse Response
+    const cleaned = rawText
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/\s*```$/i, "")
+      .trim();
+
+    let parsed;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch {
+      console.error(`[${new Date().toISOString()}] Failed to parse refactor JSON:\n${rawText}`);
+      return res.status(502).json({ error: "Failed to parse AI output. Please try again." });
+    }
+
+    if (!parsed.files || !Array.isArray(parsed.files)) {
+      return res.status(502).json({ error: "AI output is missing the 'files' array." });
+    }
+
+    console.log(`[${new Date().toISOString()}] /api/blast-refactor → Success for ${targetFile} (${parsed.files.length} files updated)`);
+    
+    return res.json({ files: parsed.files });
+
+  } catch (err) {
+    console.error(`[${new Date().toISOString()}] /api/blast-refactor error:`, err.message);
+    return res.status(500).json({
+      error: err.message.includes("Path traversal") ? err.message : "Refactoring failed due to a server error.",
+    });
+  }
+});
+
 
 // Health Scan Dashboard - Mock Data Endpoint
 // TODO: Replace with live AI scanners before demo (see HEALTH_SCAN_INTEGRATION.md)

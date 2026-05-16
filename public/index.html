@@ -11,25 +11,26 @@
         padding: 0;
         box-sizing: border-box;
       }
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
       body {
         margin: 0;
-        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        font-family: "Inter", system-ui, sans-serif;
         display: flex;
         height: 100vh;
-        background: #0d1117;
+        background: #080f1e;
         color: #c9d1d9;
         overflow: hidden;
       }
       #sidebar {
         width: 320px;
-        background: #161b22;
+        background: #0d1526;
         padding: 25px;
         display: flex;
         flex-direction: column;
         gap: 15px;
-        border-right: 1px solid #30363d;
+        border-right: 1px solid #1e293b;
         z-index: 10;
-        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
+        box-shadow: 2px 0 20px rgba(0, 0, 0, 0.6);
         overflow-y: auto;
       }
       h2 {
@@ -44,8 +45,8 @@
       }
       input {
         padding: 12px;
-        background: #0d1117;
-        border: 1px solid #30363d;
+        background: #080f1e;
+        border: 1px solid #1e293b;
         color: white;
         border-radius: 6px;
         font-size: 14px;
@@ -53,46 +54,52 @@
       }
       input:focus {
         outline: none;
-        border-color: #58a6ff;
+        border-color: #6366f1;
+        box-shadow: 0 0 0 2px rgba(99,102,241,0.2);
       }
       input::placeholder {
-        color: #6e7681;
+        color: #4a5568;
       }
       button {
         padding: 12px;
-        background: #238636;
+        background: linear-gradient(135deg, #1e3a5f 0%, #1a3050 100%);
         color: white;
-        border: none;
-        border-radius: 6px;
+        border: 1px solid #2d4a7a;
+        border-radius: 8px;
         cursor: pointer;
-        font-weight: bold;
+        font-weight: 600;
         font-size: 14px;
-        transition: background 0.2s;
+        transition: all 0.2s ease;
       }
       button:hover {
-        background: #2ea043;
+        background: linear-gradient(135deg, #254a80 0%, #1e3a6e 100%);
+        border-color: #4d7abf;
+        box-shadow: 0 2px 8px rgba(99,102,241,0.2);
       }
       button:disabled {
-        background: #30363d;
-        color: #8b949e;
+        background: #1a2035;
+        color: #4a5568;
         cursor: not-allowed;
+        border-color: #1e293b;
+        box-shadow: none;
       }
       .secondary-btn {
-        background: #21262d;
-        color: #58a6ff;
-        border: 1px solid #30363d;
+        background: transparent;
+        color: #7aa2d4;
+        border: 1px solid #1e293b;
         margin-top: 10px;
       }
       .secondary-btn:hover {
-        background: #30363d;
-        border-color: #58a6ff;
+        background: rgba(99,102,241,0.08);
+        border-color: #6366f1;
+        color: #a5b4fc;
       }
       #details {
         margin-top: 20px;
         padding: 15px;
-        background: #0d1117;
-        border-radius: 6px;
-        border: 1px solid #30363d;
+        background: #080f1e;
+        border-radius: 8px;
+        border: 1px solid #1e293b;
         font-size: 13px;
         line-height: 1.6;
         word-wrap: break-word;
@@ -113,44 +120,83 @@
       #graph-container {
         flex: 1;
         position: relative;
+        width: 100vw;
+        height: 100vh;
       }
       svg {
         width: 100%;
         height: 100%;
         cursor: grab;
+        background: radial-gradient(
+          ellipse at center,
+          #0d1a35 0%,
+          #080f1e 100%
+        );
       }
       svg:active {
         cursor: grabbing;
       }
       .node {
-        stroke: #161b22;
-        stroke-width: 2px;
         cursor: pointer;
-        transition: fill 0.2s;
+        transition:
+          fill 0.2s,
+          transform 0.2s;
       }
       .node:hover {
-        fill: #ff7b72 !important;
+        transform: scale(1.1);
       }
       .node.selected {
         stroke: #58a6ff;
         stroke-width: 3px;
       }
       .link {
-        stroke: #30363d;
+        stroke: #334155;
         stroke-opacity: 0.6;
-        stroke-width: 1.5px;
+        stroke-width: 1px;
       }
       .link.highlighted {
-        stroke: #58a6ff;
+        stroke: #6366f1;
         stroke-opacity: 1;
-        stroke-width: 2.5px;
+        stroke-width: 2px;
+      }
+      .link.dimmed {
+        stroke-opacity: 0.05;
       }
       .node-label {
-        font-size: 10px;
-        fill: #8b949e;
+        font-size: 11px;
+        fill: #e2e8f0;
         pointer-events: none;
         text-anchor: middle;
-        font-family: monospace;
+        font-family: "Inter", system-ui, sans-serif;
+        background: rgba(0, 0, 0, 0.6);
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+      .hub-label {
+        font-weight: 600;
+      }
+      #node-tooltip {
+        position: absolute;
+        display: none;
+        background: rgba(15, 23, 42, 0.95);
+        border: 1px solid #334155;
+        border-radius: 8px;
+        padding: 10px 14px;
+        font-size: 12px;
+        pointer-events: none;
+        z-index: 2500;
+        color: #e2e8f0;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(8px);
+      }
+      #node-tooltip .tooltip-name {
+        font-weight: 600;
+        margin-bottom: 4px;
+        color: #fff;
+      }
+      #node-tooltip .tooltip-complexity {
+        font-size: 11px;
+        color: #94a3b8;
       }
       #loader {
         display: none;
@@ -326,15 +372,15 @@
       /* File Intelligence Panel (Right Sidebar) */
       #intelligence-panel {
         position: fixed;
-        right: -340px;
+        right: -360px;
         top: 0;
-        width: 320px;
+        width: 340px;
         height: 100vh;
-        background: #161b22;
-        border-left: 1px solid #30363d;
-        box-shadow: -2px 0 10px rgba(0, 0, 0, 0.5);
+        background: #0a1628;
+        border-left: 1px solid #1e293b;
+        box-shadow: -4px 0 30px rgba(0, 0, 0, 0.7);
         z-index: 1000;
-        transition: right 0.3s ease;
+        transition: right 0.35s cubic-bezier(0.4, 0, 0.2, 1);
         overflow-y: auto;
         padding: 20px;
       }
@@ -347,18 +393,19 @@
         align-items: center;
         margin-bottom: 20px;
         padding-bottom: 15px;
-        border-bottom: 1px solid #30363d;
+        border-bottom: 1px solid #1e293b;
       }
       #intelligence-panel .panel-title {
-        color: #58a6ff;
-        font-size: 18px;
-        font-weight: bold;
+        color: #7aa2d4;
+        font-size: 16px;
+        font-weight: 700;
+        letter-spacing: 0.3px;
       }
       #intelligence-panel .close-btn {
         background: none;
-        border: none;
-        color: #8b949e;
-        font-size: 24px;
+        border: 1px solid #1e293b;
+        color: #64748b;
+        font-size: 20px;
         cursor: pointer;
         padding: 0;
         width: 30px;
@@ -366,59 +413,77 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        border-radius: 4px;
+        border-radius: 6px;
+        transition: all 0.15s;
       }
       #intelligence-panel .close-btn:hover {
-        background: #21262d;
-        color: #c9d1d9;
+        background: #1e293b;
+        color: #e2e8f0;
+        border-color: #334155;
       }
       #intelligence-panel .section {
-        margin-bottom: 20px;
+        margin-bottom: 18px;
       }
       #intelligence-panel .section-title {
-        color: #8b949e;
-        font-size: 11px;
+        color: #4a6080;
+        font-size: 10px;
         text-transform: uppercase;
-        font-weight: bold;
+        font-weight: 700;
         margin-bottom: 10px;
-        letter-spacing: 0.5px;
+        letter-spacing: 1px;
       }
       #intelligence-panel .file-name {
-        color: #c9d1d9;
-        font-size: 16px;
-        font-weight: bold;
+        color: #e2e8f0;
+        font-size: 15px;
+        font-weight: 700;
         margin-bottom: 5px;
         word-break: break-all;
       }
       #intelligence-panel .file-path {
-        color: #6e7681;
+        color: #4a6080;
         font-size: 11px;
         font-family: monospace;
         margin-bottom: 15px;
         word-break: break-all;
       }
       #intelligence-panel .complexity-bar-container {
-        background: #0d1117;
-        border-radius: 6px;
+        background: #080f1e;
+        border: 1px solid #1e293b;
+        border-radius: 8px;
         padding: 12px;
-        margin-bottom: 15px;
+        margin-bottom: 10px;
       }
       #intelligence-panel .complexity-score-text {
         font-size: 14px;
-        font-weight: bold;
+        font-weight: 700;
         margin-bottom: 8px;
       }
       #intelligence-panel .progress-bar {
         width: 100%;
-        height: 8px;
-        background: #21262d;
+        height: 6px;
+        background: #1e293b;
         border-radius: 4px;
         overflow: hidden;
       }
       #intelligence-panel .progress-fill {
         height: 100%;
-        transition: width 0.3s ease;
+        transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
         border-radius: 4px;
+      }
+      /* Complexity reason subtext */
+      #complexity-reason-container {
+        display: none;
+        font-size: 12px;
+        font-style: italic;
+        color: #4a6080;
+        margin-top: 8px;
+        line-height: 1.5;
+        opacity: 0;
+        transition: opacity 0.4s ease;
+      }
+      #complexity-reason-container.visible {
+        display: block;
+        opacity: 1;
       }
       #intelligence-panel .stat-cards {
         display: grid;
@@ -427,26 +492,32 @@
         margin-bottom: 15px;
       }
       #intelligence-panel .stat-card {
-        background: #0d1117;
-        border: 1px solid #30363d;
-        border-radius: 6px;
+        background: #080f1e;
+        border: 1px solid #1e293b;
+        border-radius: 8px;
         padding: 10px;
         text-align: center;
+        transition: border-color 0.2s;
+      }
+      #intelligence-panel .stat-card:hover {
+        border-color: #2d4a7a;
       }
       #intelligence-panel .stat-card-value {
-        color: #58a6ff;
+        color: #7aa2d4;
         font-size: 18px;
-        font-weight: bold;
+        font-weight: 700;
       }
       #intelligence-panel .stat-card-label {
-        color: #8b949e;
+        color: #4a6080;
         font-size: 10px;
         margin-top: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
       }
       #intelligence-panel .dependency-list {
-        background: #0d1117;
-        border: 1px solid #30363d;
-        border-radius: 6px;
+        background: #080f1e;
+        border: 1px solid #1e293b;
+        border-radius: 8px;
         padding: 10px;
         max-height: 150px;
         overflow-y: auto;
@@ -454,50 +525,122 @@
         font-family: monospace;
       }
       #intelligence-panel .dependency-item {
-        color: #8b949e;
+        color: #64748b;
         padding: 4px 0;
-        border-bottom: 1px solid #21262d;
+        border-bottom: 1px solid #0f1d35;
       }
       #intelligence-panel .dependency-item:last-child {
         border-bottom: none;
       }
       #intelligence-panel .dependency-item:hover {
-        color: #58a6ff;
+        color: #7aa2d4;
       }
       #intelligence-panel .ai-button {
         width: 100%;
-        padding: 12px;
-        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        padding: 13px;
+        background: linear-gradient(135deg, #4f46e5 0%, #2563eb 100%);
         color: white;
         border: none;
-        border-radius: 6px;
+        border-radius: 8px;
         cursor: pointer;
-        font-weight: bold;
+        font-weight: 700;
         font-size: 14px;
-        transition:
-          transform 0.2s,
-          box-shadow 0.2s;
+        letter-spacing: 0.3px;
+        transition: all 0.25s ease;
         margin-top: 15px;
+        position: relative;
+        overflow: hidden;
+      }
+      #intelligence-panel .ai-button::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, #6366f1 0%, #3b82f6 100%);
+        opacity: 0;
+        transition: opacity 0.25s;
+      }
+      #intelligence-panel .ai-button:hover::before {
+        opacity: 1;
       }
       #intelligence-panel .ai-button:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        box-shadow: 0 6px 20px rgba(79, 70, 229, 0.5);
+      }
+      #intelligence-panel .ai-button span {
+        position: relative; z-index: 1;
       }
       #intelligence-panel .ai-button:disabled {
-        background: #30363d;
-        color: #8b949e;
+        background: linear-gradient(135deg, #4f46e5 0%, #2563eb 100%);
+        opacity: 0.75;
         cursor: not-allowed;
         transform: none;
+        box-shadow: none;
+      }
+      #intelligence-panel .ai-button.loading {
+        animation: btn-pulse 1.4s ease-in-out infinite;
+      }
+      @keyframes btn-pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
       }
       #intelligence-panel .loading-spinner {
         display: inline-block;
-        width: 14px;
-        height: 14px;
-        border: 2px solid #30363d;
-        border-top: 2px solid #58a6ff;
+        width: 13px;
+        height: 13px;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-top: 2px solid #fff;
         border-radius: 50%;
-        animation: spin 1s linear infinite;
+        animation: spin 0.75s linear infinite;
         margin-right: 8px;
+        vertical-align: middle;
+      }
+      /* AI Summary Output Box */
+      #ai-summary-section {
+        display: none;
+        margin-top: 15px;
+        opacity: 0;
+        transform: translateY(6px);
+        transition: opacity 0.4s ease, transform 0.4s ease;
+      }
+      #ai-summary-section.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .ai-output-box {
+        background: #080f1e;
+        border-radius: 10px;
+        padding: 15px;
+        position: relative;
+        box-shadow: inset 0 1px 8px rgba(0,0,0,0.5);
+      }
+      .ai-output-box::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: 10px;
+        padding: 1px;
+        background: linear-gradient(135deg, #4f46e5, #2563eb, #7c3aed);
+        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+        mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        mask-composite: exclude;
+        pointer-events: none;
+      }
+      .ai-output-header {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 10px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: #7aa2d4;
+      }
+      .ai-output-text {
+        color: #c9d1d9;
+        font-size: 13px;
+        line-height: 1.65;
       }
       /* Context Menu */
       #context-menu {
@@ -525,31 +668,29 @@
         color: #58a6ff;
       }
       /* Blast Radius Effects */
-      .node.blast-affected {
-        animation: pulse 1.5s ease-in-out infinite;
+      .node.blast-root {
+        fill: #ef4444 !important;
+        filter: drop-shadow(0 0 8px rgba(239,68,68,0.9)) !important;
       }
-      @keyframes pulse {
-        0%,
-        100% {
-          opacity: 1;
-          transform: scale(1);
-        }
-        50% {
-          opacity: 0.7;
-          transform: scale(1.15);
-        }
+      .node.blast-dependent {
+        fill: #f97316 !important;
+        filter: drop-shadow(0 0 6px rgba(249,115,22,0.8)) !important;
+        animation: blast-pulse 1.6s ease-in-out infinite;
+      }
+      @keyframes blast-pulse {
+        0%,100% { opacity:1; transform:scale(1); }
+        50%      { opacity:0.75; transform:scale(1.12); }
       }
       .node.blast-dimmed {
-        opacity: 0.15;
+        opacity: 0.12;
+        filter: none !important;
       }
       .link.blast-affected {
         stroke: #ef4444 !important;
         stroke-width: 2.5px !important;
         stroke-opacity: 1 !important;
       }
-      .link.blast-dimmed {
-        opacity: 0.15;
-      }
+      .link.blast-dimmed { opacity: 0.08; }
       #blast-badge {
         position: absolute;
         top: 80px;
@@ -560,34 +701,162 @@
         border-radius: 8px;
         font-weight: bold;
         font-size: 14px;
-        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+        box-shadow: 0 4px 12px rgba(239,68,68,0.4);
         display: none;
         z-index: 100;
       }
+      /* Calculate Blast Radius button */
+      .blast-calc-btn {
+        width: 100%;
+        margin-top: 12px;
+        padding: 11px;
+        background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%);
+        color: #fca5a5;
+        border: 1px solid #ef4444;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 700;
+        font-size: 13px;
+        letter-spacing: 0.3px;
+        transition: all 0.2s;
+      }
+      .blast-calc-btn:hover {
+        background: linear-gradient(135deg, #991b1b 0%, #b91c1c 100%);
+        color: #fff;
+        box-shadow: 0 4px 14px rgba(239,68,68,0.4);
+      }
+      /* Refactor command panel */
       #blast-controls {
         margin-top: 15px;
         padding-top: 15px;
-        border-top: 1px solid #30363d;
+        border-top: 1px solid #1e293b;
         display: none;
       }
-      #blast-controls button {
-        width: 100%;
-        margin-bottom: 8px;
+      #blast-controls button { width: 100%; margin-bottom: 8px; }
+      #refactor-panel {
+        display: none;
+        margin-top: 14px;
+        animation: fadeSlide 0.3s ease;
       }
-      .refactor-btn {
+      @keyframes fadeSlide {
+        from { opacity:0; transform:translateY(6px); }
+        to   { opacity:1; transform:translateY(0); }
+      }
+      #refactor-panel .rp-title {
+        font-size: 11px; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.8px; color: #ef4444; margin-bottom: 10px;
+      }
+      #refactor-panel .rp-file-list {
+        background: #080f1e; border: 1px solid #1e293b;
+        border-radius: 6px; padding: 8px 10px;
+        max-height: 130px; overflow-y: auto;
+        font-size: 11px; font-family: monospace;
+        margin-bottom: 12px;
+      }
+      #refactor-panel .rp-file-item {
+        color: #f97316; padding: 3px 0;
+        border-bottom: 1px solid #0f1d35;
+      }
+      #refactor-panel .rp-file-item:last-child { border-bottom: none; }
+      #refactor-panel .rp-file-item.root-file { color: #ef4444; font-weight: 700; }
+      #refactor-panel textarea {
+        width: 100%; min-height: 80px;
+        background: #080f1e; border: 1px solid #1e293b;
+        border-radius: 6px; color: #e2e8f0;
+        font-size: 12px; padding: 10px;
+        resize: vertical; font-family: 'Inter', sans-serif;
+        transition: border-color 0.2s;
+        box-sizing: border-box;
+      }
+      #refactor-panel textarea:focus {
+        outline: none; border-color: #ef4444;
+        box-shadow: 0 0 0 2px rgba(239,68,68,0.15);
+      }
+      #refactor-panel .rp-submit {
+        width: 100%; margin-top: 10px; padding: 11px;
         background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white; border: none; border-radius: 8px;
+        cursor: pointer; font-weight: 700; font-size: 13px;
+        transition: all 0.2s;
       }
-      .refactor-btn:hover {
-        background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+      #refactor-panel .rp-submit:hover {
+        box-shadow: 0 4px 14px rgba(239,68,68,0.45);
+        transform: translateY(-1px);
       }
       .clear-blast-btn {
-        background: #21262d;
-        color: #8b949e;
-        border: 1px solid #30363d;
+        background: transparent; color: #64748b;
+        border: 1px solid #1e293b; border-radius: 8px;
+        font-size: 12px; padding: 8px;
       }
-      .clear-blast-btn:hover {
-        background: #30363d;
-        color: #c9d1d9;
+      .clear-blast-btn:hover { background:#1e293b; color:#e2e8f0; }
+      /* Complexity Legend - Top Right */
+      #complexity-legend {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: rgba(15, 23, 42, 0.85);
+        border: 1px solid #1e293b;
+        border-radius: 10px;
+        padding: 14px 18px;
+        color: #94a3b8;
+        font-size: 13px;
+        backdrop-filter: blur(8px);
+        z-index: 150;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      }
+      #complexity-legend .legend-title {
+        font-weight: 600;
+        color: #e2e8f0;
+        margin-bottom: 10px;
+        font-size: 14px;
+      }
+      #complexity-legend .legend-item {
+        display: flex;
+        align-items: center;
+        margin: 6px 0;
+        font-size: 12px;
+      }
+      #complexity-legend .dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+      #complexity-legend .dot.green {
+        background: #22c55e;
+      }
+      #complexity-legend .dot.amber {
+        background: #f59e0b;
+      }
+      #complexity-legend .dot.red {
+        background: #ef4444;
+      }
+      /* Stats Bar - Bottom */
+      #stats-bar {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background: rgba(2, 8, 23, 0.9);
+        border-top: 1px solid #1e293b;
+        padding: 10px 24px;
+        color: #64748b;
+        font-size: 12px;
+        display: flex;
+        gap: 16px;
+        z-index: 150;
+        backdrop-filter: blur(8px);
+      }
+      #stats-bar span {
+        color: #94a3b8;
+      }
+      #stats-bar .stat-value {
+        color: #e2e8f0;
+        font-weight: 600;
+      }
+      #stats-bar .divider {
+        color: #334155;
       }
     </style>
   </head>
@@ -646,20 +915,18 @@
         <div>🔄 Cloning & Analyzing Repository...</div>
       </div>
       <div id="complexity-legend">
-        <div class="legend-title">Complexity Score</div>
+        <div class="legend-title">Complexity</div>
         <div class="legend-item">
-          <div class="legend-color" style="background: #22c55e"></div>
-          0-33 Low
+          <span class="dot green"></span> Low (0–33)
         </div>
         <div class="legend-item">
-          <div class="legend-color" style="background: #f59e0b"></div>
-          34-66 Medium
+          <span class="dot amber"></span> Medium (34–66)
         </div>
         <div class="legend-item">
-          <div class="legend-color" style="background: #ef4444"></div>
-          67-100 High
+          <span class="dot red"></span> High (67–100)
         </div>
       </div>
+      <div id="node-tooltip"></div>
       <div id="complexity-tooltip"></div>
       <svg></svg>
     </div>
@@ -688,6 +955,7 @@
               ></div>
             </div>
           </div>
+          <div id="complexity-reason-container"></div>
         </div>
         <div class="section">
           <div class="section-title">COMPLEXITY BREAKDOWN</div>
@@ -725,19 +993,24 @@
           </div>
         </div>
         <button class="ai-button" id="ai-summarize-btn">
-          ✨ Ask AI to Summarize
+          <span>✨ Ask AI to Summarize</span>
         </button>
-        <div
-          id="ai-summary-section"
-          style="display: none; margin-top: 15px"
-        ></div>
+        <div id="ai-summary-section"></div>
+        <!-- Blast Radius trigger (shown when a node is selected) -->
+        <button class="blast-calc-btn" id="blast-calc-btn" style="display:none">
+          🔥 Calculate Blast Radius
+        </button>
+        <!-- Refactor command panel (shown after blast radius is calculated) -->
+        <div id="refactor-panel">
+          <div class="rp-title">🔥 Blast Radius — Refactor Command</div>
+          <div class="rp-file-list" id="rp-file-list"></div>
+          <textarea id="rp-instruction"
+            placeholder="E.g., Change this function to return a Promise instead of using a callback..."
+          ></textarea>
+          <button class="rp-submit" id="rp-submit-btn">⚡ Execute Multi-File Refactor</button>
+        </div>
         <div id="blast-controls">
-          <button class="refactor-btn" id="initiate-refactor-btn">
-            🔥 Initiate Refactor
-          </button>
-          <button class="clear-blast-btn" id="clear-blast-btn">
-            Clear Blast Radius
-          </button>
+          <button class="clear-blast-btn" id="clear-blast-btn">✕ Clear Blast Radius</button>
         </div>
       </div>
     </div>
@@ -745,6 +1018,21 @@
       <div class="menu-item" id="show-blast-radius">🔥 Show Blast Radius</div>
     </div>
     <div id="blast-badge"></div>
+    <div id="stats-bar">
+      <span id="stat-nodes"><span class="stat-value">0</span> files</span>
+      <span class="divider">·</span>
+      <span id="stat-links"
+        ><span class="stat-value">0</span> dependencies</span
+      >
+      <span class="divider">·</span>
+      <span id="stat-high"
+        ><span class="stat-value">0</span> high complexity</span
+      >
+      <span class="divider">·</span>
+      <span id="stat-clusters"
+        ><span class="stat-value">0</span> directories</span
+      >
+    </div>
     <script>
       const btn = document.getElementById("analyzeBtn");
       const healthScanBtn = document.getElementById("healthScanBtn");
@@ -772,6 +1060,7 @@
         "initiate-refactor-btn",
       );
       const clearBlastBtn = document.getElementById("clear-blast-btn");
+      const nodeTooltip = document.getElementById("node-tooltip");
       let simulation;
       let currentData = { nodes: [], links: [] };
       let currentSelectedNode = null;
@@ -780,6 +1069,121 @@
       let blastRadiusActive = false;
       let affectedNodes = [];
       let contextMenuNode = null;
+
+      // ─── MERN Demo Data: enriched node metadata ───────────────────────────
+      const MERN_NODE_META = {
+        "auth.controller.ts": {
+          complexityReason: "High cyclomatic complexity due to nested ternary operators and multiple async database calls within a single route handler.",
+          aiSummary: "This controller handles JWT authentication, validates user login credentials against the MongoDB database using bcrypt comparison, and issues signed access tokens with configurable expiry. It also manages token refresh cycles and session invalidation."
+        },
+        "App.jsx": {
+          complexityReason: "Multiple conditional render paths, deeply nested provider hierarchy, and several useEffect hooks creating complex lifecycle dependencies.",
+          aiSummary: "The root React component that bootstraps the application. It wraps all routes with the Redux store Provider, React Router, and global context providers for theming and authentication state. Handles top-level error boundaries and lazy-loaded route splitting."
+        },
+        "server.js": {
+          complexityReason: "Orchestrates Express middleware stack, MongoDB connection, and WebSocket setup in a single entry point with broad error surface.",
+          aiSummary: "The Express.js entry point that initialises middleware (CORS, body-parser, helmet), mounts all API route modules, establishes the Mongoose MongoDB connection, and starts the HTTP server. Includes graceful shutdown handling for SIGTERM signals."
+        },
+        "userRoutes.js": {
+          complexityReason: "Multiple route definitions with mixed authentication middleware chains and role-based guard conditions increase branch count significantly.",
+          aiSummary: "Defines all RESTful endpoints for user resource management including registration, profile retrieval, updates, and deletion. Applies JWT middleware selectively and delegates business logic to the UserController layer."
+        },
+        "db.js": {
+          complexityReason: "Retry logic with exponential backoff and environment-specific connection URI switching adds moderate conditional complexity.",
+          aiSummary: "Manages the Mongoose connection lifecycle to MongoDB Atlas. Exports a singleton connection helper used across the application, with built-in retry logic, connection event logging, and environment-aware URI configuration."
+        },
+        "utils.js": {
+          complexityReason: "A collection of utility helpers with varied responsibilities; low individual complexity but high aggregated branch coverage.",
+          aiSummary: "A shared utility module exporting helper functions used across the codebase: date formatting, pagination calculators, response envelope builders, and input sanitization helpers. Kept dependency-free for maximum portability."
+        }
+      };
+
+      // Enrich a node with MERN demo metadata if it matches a known key
+      function enrichNodeMeta(node) {
+        const label = node.label || node.id.split('/').pop();
+        const match = MERN_NODE_META[label] || MERN_NODE_META[node.id.split('/').pop()];
+        if (match) {
+          node.complexityReason = node.complexityReason || match.complexityReason;
+          node.aiSummary = node.aiSummary || match.aiSummary;
+        }
+        return node;
+      }
+      // ─────────────────────────────────────────────────────────────────────
+
+      // Helper function: Get node radius based on connections + complexity
+      function getNodeRadius(d) {
+        const connectionCount = currentData.links.filter(
+          (l) =>
+            (l.source.id || l.source) === d.id ||
+            (l.target.id || l.target) === d.id,
+        ).length;
+        const baseSize = 5 + Math.sqrt(connectionCount) * 3;
+        const complexityBonus = d.complexityScore
+          ? (d.complexityScore / 100) * 8
+          : 0;
+        return Math.min(baseSize + complexityBonus, 28);
+      }
+
+      // Helper function: Get node color by complexity
+      function getNodeColor(d) {
+        const score = d.complexityScore || 0;
+        if (score >= 67) return "#ef4444"; // red
+        if (score >= 34) return "#f59e0b"; // amber
+        return "#22c55e"; // green
+      }
+
+      // Helper function: Get directory-based stroke color for clustering
+      function getDirectoryColor(d) {
+        const topDir = d.id.split("/")[0];
+        const palette = [
+          "#6366f1",
+          "#06b6d4",
+          "#8b5cf6",
+          "#ec4899",
+          "#14b8a6",
+          "#f97316",
+          "#84cc16",
+          "#f43f5e",
+        ];
+        let hash = 0;
+        for (let c of topDir) hash = c.charCodeAt(0) + ((hash << 5) - hash);
+        return palette[Math.abs(hash) % palette.length];
+      }
+
+      // Helper function: Get glow filter ID based on color
+      function getGlowFilter(d) {
+        const score = d.complexityScore || 0;
+        if (score >= 67) return "url(#glow-2)"; // red
+        if (score >= 34) return "url(#glow-1)"; // amber
+        return "url(#glow-0)"; // green
+      }
+
+      // Helper function: Check if node is a hub (3+ connections)
+      function isHubNode(d) {
+        const connectionCount = currentData.links.filter(
+          (l) =>
+            (l.source.id || l.source) === d.id ||
+            (l.target.id || l.target) === d.id,
+        ).length;
+        return connectionCount >= 3;
+      }
+
+      // Helper function: Update stats bar
+      function updateStatsBar(nodes, links) {
+        const highComplexity = nodes.filter(
+          (n) => (n.complexityScore || 0) >= 67,
+        ).length;
+        const directories = new Set(nodes.map((n) => n.id.split("/")[0])).size;
+
+        document.querySelector("#stat-nodes .stat-value").textContent =
+          nodes.length;
+        document.querySelector("#stat-links .stat-value").textContent =
+          links.length;
+        document.querySelector("#stat-high .stat-value").textContent =
+          highComplexity;
+        document.querySelector("#stat-clusters .stat-value").textContent =
+          directories;
+      }
 
       // Close panel handler
       closePanel.addEventListener("click", () => {
@@ -790,61 +1194,113 @@
 
       // AI Summarize button handler
       aiSummarizeBtn.addEventListener("click", async () => {
-        if (!currentSelectedNode || !currentRepoPath) {
-          alert(
-            "Please select a file first by clicking on a node in the graph.",
-          );
-          return;
-        }
+        if (!currentSelectedNode || !currentRepoPath) return;
 
-        const cacheKey = currentSelectedNode.id;
+        const node = currentSelectedNode;
+        const cacheKey = node.id;
 
-        // Check cache first
+        // Serve from cache — no extra API call needed
         if (aiSummaryCache.has(cacheKey)) {
-          displayAISummary(aiSummaryCache.get(cacheKey));
+          showAISummaryBox(aiSummaryCache.get(cacheKey));
           return;
         }
 
-        // Show loading state
+        // ── Loading state ──────────────────────────────────────────────────
         aiSummarizeBtn.disabled = true;
-        aiSummarizeBtn.innerHTML =
-          '<span class="loading-spinner"></span> Analyzing...';
-        aiSummarySection.style.display = "none";
+        aiSummarizeBtn.classList.add("loading");
+        aiSummarizeBtn.querySelector("span").innerHTML =
+          '<span class="loading-spinner"></span>Analyzing file...';
 
         try {
-          const response = await fetch("/api/file-summary", {
+          // ── Call real backend route ────────────────────────────────────
+          const res = await fetch("/api/analyze-file", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               repoPath: currentRepoPath,
-              filePath: currentSelectedNode.id,
+              filePath: node.id,
             }),
           });
 
-          if (!response.ok) {
-            throw new Error("Failed to get AI summary");
+          const data = await res.json();
+
+          if (!res.ok) {
+            // Server returned a structured error
+            throw new Error(data.error || `Server error ${res.status}`);
           }
 
-          const summary = await response.json();
+          // ── Cache + update live node object ───────────────────────────
+          aiSummaryCache.set(cacheKey, data.aiSummary);
 
-          // Cache the result
-          aiSummaryCache.set(cacheKey, summary);
+          // Persist back onto the node so the complexity-reason subtext
+          // is updated if the user re-opens the panel for this node
+          node.aiSummary = data.aiSummary;
+          node.complexityReason = data.complexityReason;
 
-          // Display the summary
-          displayAISummary(summary);
-        } catch (error) {
-          console.error("AI Summary error:", error);
-          aiSummarySection.innerHTML = `
-            <div style="background: #21262d; border: 1px solid #f85149; border-radius: 6px; padding: 12px; color: #f85149;">
-              ❌ Failed to generate AI summary. Please try again.
-            </div>
-          `;
-          aiSummarySection.style.display = "block";
-        } finally {
+          // Refresh the complexity reason subtext immediately
+          const reasonEl = document.getElementById("complexity-reason-container");
+          if (data.complexityReason) {
+            reasonEl.textContent = "Reason: " + data.complexityReason;
+            reasonEl.style.display = "block";
+            requestAnimationFrame(() =>
+              requestAnimationFrame(() => reasonEl.classList.add("visible"))
+            );
+          }
+
+          showAISummaryBox(data.aiSummary);
+
+        } catch (err) {
+          console.error("[AI analyze-file]", err.message);
+
+          // Reset button so user can retry
           aiSummarizeBtn.disabled = false;
-          aiSummarizeBtn.innerHTML = "✨ Ask AI to Summarize";
+          aiSummarizeBtn.classList.remove("loading");
+          aiSummarizeBtn.querySelector("span").innerHTML = "✨ Ask AI to Summarize";
+
+          // Inline error card — no alert()
+          aiSummarySection.innerHTML = `
+            <div style="
+              background: rgba(239,68,68,0.08);
+              border: 1px solid rgba(239,68,68,0.35);
+              border-radius: 8px;
+              padding: 12px 14px;
+              font-size: 12px;
+              color: #fca5a5;
+              line-height: 1.5;
+            ">
+              <strong style="display:block;margin-bottom:4px;">⚠ Analysis failed</strong>
+              ${err.message}
+            </div>`;
+          aiSummarySection.style.display = "block";
+          requestAnimationFrame(() =>
+            requestAnimationFrame(() => aiSummarySection.classList.add("visible"))
+          );
         }
       });
+
+      function showAISummaryBox(text) {
+        // Reset button
+        aiSummarizeBtn.disabled = false;
+        aiSummarizeBtn.classList.remove("loading");
+        aiSummarizeBtn.style.display = "none";
+
+        // Build and reveal AI output box
+        aiSummarySection.innerHTML = `
+          <div class="ai-output-box">
+            <div class="ai-output-header">
+              ✨ AI Analysis
+            </div>
+            <div class="ai-output-text">${text}</div>
+          </div>
+        `;
+        aiSummarySection.style.display = "block";
+        // Trigger CSS transition on next frame
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            aiSummarySection.classList.add("visible");
+          });
+        });
+      }
 
       // Function to display AI summary
       function displayAISummary(summary) {
@@ -897,87 +1353,93 @@
       }
 
       // Blast Radius Functions
-      function computeBlastRadius(startNodeId, links, maxHops = 2) {
-        const affected = new Set([startNodeId]);
-        const queue = [{ id: startNodeId, hop: 0 }];
-        const visited = new Set();
+      // Directional BFS: find nodes that IMPORT (depend on) startNodeId,
+      // i.e., traverse reverse edges: link.target === id → link.source is a dependent.
+      function computeBlastRadius(startNodeId, links) {
+        const dependents = new Set(); // excludes the root itself
+        const queue = [startNodeId];
+        const visited = new Set([startNodeId]);
 
         while (queue.length > 0) {
-          const { id, hop } = queue.shift();
-
-          if (visited.has(id) || hop >= maxHops) continue;
-          visited.add(id);
-
-          // Find all nodes connected to this one
+          const id = queue.shift();
           links.forEach((link) => {
-            if (link.source.id === id && !affected.has(link.target.id)) {
-              affected.add(link.target.id);
-              queue.push({ id: link.target.id, hop: hop + 1 });
-            }
-            if (link.target.id === id && !affected.has(link.source.id)) {
-              affected.add(link.source.id);
-              queue.push({ id: link.source.id, hop: hop + 1 });
+            // A file that imports `id` — i.e. id is target, source is the dependent
+            const depId = link.target.id === id ? link.source.id
+                        : link.source.id === id ? link.target.id   // bidirectional fallback
+                        : null;
+            if (depId && !visited.has(depId)) {
+              visited.add(depId);
+              dependents.add(depId);
+              queue.push(depId);
             }
           });
         }
-
-        return Array.from(affected);
+        return Array.from(dependents);
       }
 
       function showBlastRadius(node, links) {
         blastRadiusActive = true;
         affectedNodes = computeBlastRadius(node.id, links);
+        const affectedSet = new Set(affectedNodes);
 
-        // Dim all nodes and links
-        svg
-          .selectAll(".node")
-          .classed("blast-dimmed", (d) => !affectedNodes.includes(d.id))
-          .classed(
-            "blast-affected",
-            (d) => affectedNodes.includes(d.id) && d.id !== node.id,
+        // ── Node coloring ──────────────────────────────────────────────────
+        svg.selectAll(".node")
+          .classed("blast-dimmed",    (d) => d.id !== node.id && !affectedSet.has(d.id))
+          .classed("blast-root",      (d) => d.id === node.id)
+          .classed("blast-dependent", (d) => d.id !== node.id && affectedSet.has(d.id));
+
+        // ── Link coloring ──────────────────────────────────────────────────
+        svg.selectAll(".link")
+          .classed("blast-dimmed",   (l) => !(
+              (l.source.id === node.id || affectedSet.has(l.source.id)) &&
+              (l.target.id === node.id || affectedSet.has(l.target.id))
+            ))
+          .classed("blast-affected", (l) =>
+              (l.source.id === node.id || affectedSet.has(l.source.id)) &&
+              (l.target.id === node.id || affectedSet.has(l.target.id))
           );
 
-        svg
-          .selectAll(".link")
-          .classed(
-            "blast-dimmed",
-            (l) =>
-              !affectedNodes.includes(l.source.id) ||
-              !affectedNodes.includes(l.target.id),
-          )
-          .classed(
-            "blast-affected",
-            (l) =>
-              affectedNodes.includes(l.source.id) &&
-              affectedNodes.includes(l.target.id),
-          );
-
-        // Show badge
-        blastBadge.textContent = `🔥 ${affectedNodes.length} files affected`;
+        // ── Badge ──────────────────────────────────────────────────────────
+        blastBadge.textContent = `🔥 ${affectedNodes.length} files in blast radius`;
         blastBadge.style.display = "block";
 
-        // Show blast controls in panel
+        // ── Refactor panel ─────────────────────────────────────────────────
+        const rpFileList = document.getElementById("rp-file-list");
+        rpFileList.innerHTML =
+          `<div class="rp-file-item root-file">⚡ ${node.id} (root)</div>` +
+          affectedNodes.map(id =>
+            `<div class="rp-file-item">→ ${id}</div>`
+          ).join("");
+
+        document.getElementById("rp-instruction").value = "";
+        document.getElementById("refactor-panel").style.display = "block";
         blastControls.style.display = "block";
+
+        // Hide the trigger button while panel is active
+        document.getElementById("blast-calc-btn").style.display = "none";
       }
 
       function clearBlastRadius() {
         blastRadiusActive = false;
         affectedNodes = [];
 
-        // Remove all blast classes
-        svg
-          .selectAll(".node")
+        svg.selectAll(".node")
+          .classed("blast-dimmed", false)
+          .classed("blast-root", false)
+          .classed("blast-dependent", false);
+
+        svg.selectAll(".link")
           .classed("blast-dimmed", false)
           .classed("blast-affected", false);
 
-        svg
-          .selectAll(".link")
-          .classed("blast-dimmed", false)
-          .classed("blast-affected", false);
-
-        // Hide badge and controls
         blastBadge.style.display = "none";
         blastControls.style.display = "none";
+        document.getElementById("refactor-panel").style.display = "none";
+
+        // Show trigger button again if a node is still selected
+        if (currentSelectedNode) {
+          document.getElementById("blast-calc-btn").style.display = "block";
+        }
       }
 
       // Context menu handlers
@@ -995,57 +1457,49 @@
 
       clearBlastBtn.addEventListener("click", clearBlastRadius);
 
-      initiateRefactorBtn.addEventListener("click", async () => {
-        if (!currentSelectedNode || affectedNodes.length === 0) return;
-
-        initiateRefactorBtn.disabled = true;
-        initiateRefactorBtn.innerHTML =
-          '<span class="loading-spinner"></span> Initiating...';
-
-        try {
-          // Call the blast-radius endpoint (being built by teammate)
-          const response = await fetch("/api/blast-radius", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              targetFile: currentSelectedNode.id,
-              affectedFiles: affectedNodes,
-            }),
-          });
-
-          // Show toast notification
-          const toast = document.createElement("div");
-          toast.style.cssText = `
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-            color: white;
-            padding: 15px 25px;
-            border-radius: 8px;
-            font-weight: bold;
-            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
-            z-index: 3000;
-          `;
-          toast.textContent = "✅ Refactor request sent to analysis queue";
-          document.body.appendChild(toast);
-
-          setTimeout(() => {
-            toast.remove();
-          }, 3000);
-        } catch (error) {
-          console.error("Refactor initiation error:", error);
-          alert("Refactor endpoint not yet available. Feature coming soon!");
-        } finally {
-          initiateRefactorBtn.disabled = false;
-          initiateRefactorBtn.innerHTML = "🔥 Initiate Refactor";
+      // Calculate Blast Radius button (inside intelligence panel)
+      document.getElementById("blast-calc-btn").addEventListener("click", () => {
+        if (currentSelectedNode) {
+          showBlastRadius(currentSelectedNode, currentData.links);
         }
+      });
+
+      // Execute Multi-File Refactor submit
+      document.getElementById("rp-submit-btn").addEventListener("click", () => {
+        const instruction = document.getElementById("rp-instruction").value.trim();
+        if (!instruction) {
+          document.getElementById("rp-instruction").focus();
+          return;
+        }
+        const submitBtn = document.getElementById("rp-submit-btn");
+        submitBtn.disabled = true;
+        submitBtn.textContent = "⏳ Queuing refactor...";
+
+        // Simulate queuing (replace with real API call when backend is ready)
+        setTimeout(() => {
+          const toast = document.createElement("div");
+          toast.style.cssText = [
+            "position:fixed","top:20px","left:50%",
+            "transform:translateX(-50%)",
+            "background:linear-gradient(135deg,#22c55e,#16a34a)",
+            "color:white","padding:14px 24px","border-radius:8px",
+            "font-weight:700","font-size:13px",
+            "box-shadow:0 4px 14px rgba(34,197,94,0.45)",
+            "z-index:3000","pointer-events:none"
+          ].join(";");
+          toast.textContent =
+            `✅ Refactor queued for ${affectedNodes.length + 1} files`;
+          document.body.appendChild(toast);
+          setTimeout(() => toast.remove(), 3500);
+
+          submitBtn.disabled = false;
+          submitBtn.textContent = "⚡ Execute Multi-File Refactor";
+        }, 1200);
       });
 
       // Function to open intelligence panel with node data
       function openIntelligencePanel(node, links) {
-        currentSelectedNode = node;
+        currentSelectedNode = enrichNodeMeta(node);
         const breakdown = node.complexityBreakdown || {
           branchCount: 0,
           nestingDepth: 0,
@@ -1069,6 +1523,19 @@
         const progressBar = document.getElementById("panel-complexity-bar");
         progressBar.style.width = score + "%";
         progressBar.style.background = getComplexityColor(score);
+
+        // Show complexity reason if available
+        const reasonEl = document.getElementById("complexity-reason-container");
+        reasonEl.classList.remove("visible");
+        reasonEl.style.display = "none";
+        if (node.complexityReason) {
+          reasonEl.textContent = "Reason: " + node.complexityReason;
+          reasonEl.style.display = "block";
+          // Trigger fade-in
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => reasonEl.classList.add("visible"));
+          });
+        }
 
         // Update breakdown stats
         document.getElementById("panel-branches").textContent =
@@ -1105,8 +1572,24 @@
             "Not imported by any file";
         }
 
-        // Hide AI summary section initially
-        document.getElementById("ai-summary-section").style.display = "none";
+        // Reset AI section and button for new node
+        aiSummarySection.style.display = "none";
+        aiSummarySection.classList.remove("visible");
+        aiSummarySection.innerHTML = "";
+        aiSummarizeBtn.style.display = "";
+        aiSummarizeBtn.disabled = false;
+        aiSummarizeBtn.classList.remove("loading");
+        aiSummarizeBtn.querySelector("span").innerHTML = "✨ Ask AI to Summarize";
+
+        // Reset Blast Radius UI state for new node
+        document.getElementById("blast-calc-btn").style.display = "block";
+        document.getElementById("refactor-panel").style.display = "none";
+        blastControls.style.display = "none";
+
+        // Clear any existing blast visual effects
+        if (blastRadiusActive) {
+            clearBlastRadius();
+        }
 
         // Open the panel
         intelligencePanel.classList.add("open");
@@ -1169,6 +1652,7 @@
 
           detailContent.innerHTML = `<span class="success-message">✅ Success!</span><br><br>Rendered <b>${data.nodes.length}</b> files and <b>${data.links.length}</b> internal connections.<br><br>💡 <i>Click any node to view details. Drag nodes to reposition. Scroll to zoom.</i>`;
           renderGraph(data.nodes, data.links);
+          updateStatsBar(data.nodes, data.links);
         } catch (err) {
           detailContent.innerHTML = `<span class="error-message">❌ Error: ${err.message}</span>`;
           console.error("Analysis error:", err);
@@ -1182,6 +1666,19 @@
         const width = document.getElementById("graph-container").clientWidth;
         const height = document.getElementById("graph-container").clientHeight;
 
+        // Add SVG glow filters
+        const defs = svg.append("defs");
+        ["#22c55e", "#f59e0b", "#ef4444"].forEach((color, i) => {
+          const filter = defs.append("filter").attr("id", `glow-${i}`);
+          filter
+            .append("feGaussianBlur")
+            .attr("stdDeviation", "3")
+            .attr("result", "coloredBlur");
+          const merge = filter.append("feMerge");
+          merge.append("feMergeNode").attr("in", "coloredBlur");
+          merge.append("feMergeNode").attr("in", "SourceGraphic");
+        });
+
         const g = svg.append("g");
         svg.call(
           d3
@@ -1190,25 +1687,119 @@
             .on("zoom", (event) => g.attr("transform", event.transform)),
         );
 
+        // ── STEP 1: BFS to assign depth to every node ─────────────────────
+        (function assignDepths() {
+          // Build fast lookup maps
+          const nodeById = new Map(nodes.map(n => [n.id, n]));
+          const inDegree  = new Map(nodes.map(n => [n.id, 0]));
+          const outDegree = new Map(nodes.map(n => [n.id, 0]));
+          const children  = new Map(nodes.map(n => [n.id, []])); // outgoing
+
+          links.forEach(l => {
+            const srcId = l.source.id ?? l.source;
+            const tgtId = l.target.id ?? l.target;
+            inDegree.set(tgtId, (inDegree.get(tgtId) || 0) + 1);
+            outDegree.set(srcId, (outDegree.get(srcId) || 0) + 1);
+            if (children.has(srcId)) children.get(srcId).push(tgtId);
+          });
+
+          // Root heuristic: no incoming edges OR filename matches common entry points
+          const rootNames = new Set(["index.js","index.ts","server.js","app.js","main.js","main.ts","App.jsx","App.tsx"]);
+          const roots = nodes.filter(n => {
+            const filename = n.id.split("/").pop();
+            return inDegree.get(n.id) === 0 || rootNames.has(filename);
+          });
+
+          // Initialise all depths to -1 (unvisited)
+          nodes.forEach(n => { n.depth = -1; });
+
+          // BFS from roots
+          const queue = [];
+          roots.forEach(r => {
+            if (r.depth === -1) { r.depth = 0; queue.push(r.id); }
+          });
+
+          while (queue.length) {
+            const id = queue.shift();
+            const d  = nodeById.get(id).depth;
+            (children.get(id) || []).forEach(childId => {
+              const child = nodeById.get(childId);
+              if (child && child.depth === -1) {
+                child.depth = d + 1;
+                queue.push(childId);
+              }
+            });
+          }
+
+          // Assign default depth for unreachable (floating) nodes
+          // Use the median depth so they don't clutter the top row
+          const assigned = nodes.filter(n => n.depth >= 0).map(n => n.depth);
+          const fallback = assigned.length
+            ? Math.round(assigned.reduce((a,b) => a+b, 0) / assigned.length)
+            : 2;
+          nodes.forEach(n => { if (n.depth === -1) n.depth = fallback; });
+        })();
+
+        // ── STEP 2: Assign X target per top-level directory ───────────────
+        const dirList = Array.from(new Set(nodes.map(n => n.id.split("/")[0])));
+        const dirCount = dirList.length || 1;
+        // Space directories evenly across 80 % of the canvas width
+        const dirXMap = new Map();
+        dirList.forEach((dir, i) => {
+          dirXMap.set(dir, width * 0.1 + (i / (dirCount - 1 || 1)) * width * 0.8);
+        });
+        nodes.forEach(n => {
+          const dir = n.id.split("/")[0];
+          n._targetX = dirXMap.get(dir) ?? width / 2;
+        });
+
+        // ── STEP 3: Hierarchical Force Simulation ─────────────────────────
+        const Y_ORIGIN  = 80;   // px from top for depth-0 nodes
+        const Y_SPACING = 160;  // px between depth levels
+
         simulation = d3
           .forceSimulation(nodes)
+          // Weakened link: visual connector only, not a layout driver
           .force(
             "link",
-            d3
-              .forceLink(links)
-              .id((d) => d.id)
-              .distance(80),
+            d3.forceLink(links)
+              .id(d => d.id)
+              .distance(100)
+              .strength(0.15),
           )
-          .force("charge", d3.forceManyBody().strength(-300))
-          .force("center", d3.forceCenter(width / 2, height / 2))
-          .force("collide", d3.forceCollide().radius(25));
+          // Mild repulsion so sibling nodes spread naturally
+          .force("charge", d3.forceManyBody().strength(-220).distanceMax(400))
+          // No forceCenter — depth rows replace it vertically
+          // forceY: snap every node to its depth row
+          .force(
+            "y",
+            d3.forceY(d => Y_ORIGIN + d.depth * Y_SPACING).strength(0.55),
+          )
+          // forceX: pull each node toward its directory column
+          .force(
+            "x",
+            d3.forceX(d => d._targetX).strength(0.22),
+          )
+          // Prevent overlap
+          .force(
+            "collide",
+            d3.forceCollide()
+              .radius(d => getNodeRadius(d) + 14)
+              .strength(0.9),
+          )
+          // Run more alpha ticks so the layout settles faster on load
+          .alphaDecay(0.022)
+          .velocityDecay(0.38);
 
         const link = g
           .append("g")
           .selectAll("line")
           .data(links)
           .join("line")
-          .attr("class", "link");
+          .attr("class", "link")
+          .attr("stroke", "#334155")
+          .attr("stroke-opacity", 0.6)
+          .attr("stroke-width", 1);
 
         const nodeGroup = g
           .append("g")
@@ -1220,39 +1811,46 @@
         nodeGroup
           .append("circle")
           .attr("class", "node")
-          .attr("r", (d) => Math.max(6, Math.min(15, Math.sqrt(d.size) / 10)))
-          .attr("fill", (d) => getComplexityColor(d.complexityScore || 0))
+          .attr("r", (d) => getNodeRadius(d))
+          .attr("fill", (d) => getNodeColor(d))
+          .attr("stroke", (d) => getDirectoryColor(d))
+          .attr("stroke-width", 2.5)
+          .attr("filter", (d) => getGlowFilter(d))
           .on("mouseover", (event, d) => {
-            const breakdown = d.complexityBreakdown || {
-              branchCount: 0,
-              nestingDepth: 0,
-              todoCount: 0,
-              lineCount: 0,
-            };
             const score = d.complexityScore || 0;
 
-            tooltip.innerHTML = `
-              <div class="tooltip-filename">${d.label}</div>
-              <div class="tooltip-score ${getComplexityClass(score)}">
-                Complexity: ${score}/100 (${getComplexityLabel(score)})
-              </div>
-              <div class="tooltip-breakdown">
-                <div class="breakdown-item">🔀 Branches: ${breakdown.branchCount}</div>
-                <div class="breakdown-item">📊 Max Nesting: ${breakdown.nestingDepth}</div>
-                <div class="breakdown-item">📝 TODOs: ${breakdown.todoCount}</div>
-                <div class="breakdown-item">📏 Lines: ${breakdown.lineCount}</div>
-              </div>
-            `;
-            tooltip.style.display = "block";
-            tooltip.style.left = event.pageX + 10 + "px";
-            tooltip.style.top = event.pageY + 10 + "px";
+            // Show simple tooltip for non-hub nodes
+            if (!isHubNode(d)) {
+              nodeTooltip.innerHTML = `
+                <div class="tooltip-name">${d.label}</div>
+                <div class="tooltip-complexity">Complexity: ${score}/100</div>
+              `;
+              nodeTooltip.style.display = "block";
+              nodeTooltip.style.left = event.pageX + 10 + "px";
+              nodeTooltip.style.top = event.pageY + 10 + "px";
+            }
+
+            // Highlight connected links
+            link
+              .classed(
+                "dimmed",
+                (l) => l.source.id !== d.id && l.target.id !== d.id,
+              )
+              .classed(
+                "highlighted",
+                (l) => l.source.id === d.id || l.target.id === d.id,
+              );
           })
           .on("mousemove", (event) => {
-            tooltip.style.left = event.pageX + 10 + "px";
-            tooltip.style.top = event.pageY + 10 + "px";
+            if (nodeTooltip.style.display === "block") {
+              nodeTooltip.style.left = event.pageX + 10 + "px";
+              nodeTooltip.style.top = event.pageY + 10 + "px";
+            }
           })
           .on("mouseout", () => {
-            tooltip.style.display = "none";
+            nodeTooltip.style.display = "none";
+            // Reset link highlighting
+            link.classed("dimmed", false).classed("highlighted", false);
           })
           .on("contextmenu", (event, d) => {
             event.preventDefault();
@@ -1292,13 +1890,54 @@
                     `;
           });
 
+        // Only show labels for hub nodes (3+ connections)
         nodeGroup
+          .filter((d) => isHubNode(d))
           .append("text")
-          .attr("class", "node-label")
-          .attr("dy", 20)
+          .attr("class", "node-label hub-label")
+          .attr("dy", (d) => getNodeRadius(d) + 14)
           .text((d) =>
             d.label.length > 15 ? d.label.substring(0, 12) + "..." : d.label,
           );
+
+        // ── Convex Hull Bounding Boxes ───────────────────────────────────
+        // Group nodes by top-level directory
+        const dirGroups = d3.group(nodes, n => n.id.split("/")[0]);
+
+        // Insert hull layer FIRST inside <g> so it renders behind links + nodes
+        const hullLayer = g.insert("g", ":first-child").attr("class", "hull-layer");
+
+        // One <g> per directory: holds a <path> (hull fill) + <text> (label)
+        const hullGroups = hullLayer
+          .selectAll(".hull-group")
+          .data(Array.from(dirGroups.keys()))
+          .join("g")
+          .attr("class", "hull-group");
+
+        // Path element – shape drawn each tick
+        hullGroups.append("path")
+          .attr("class", "hull-path")
+          .style("fill", dir => getDirectoryColor({ id: dir + "/_.js" }))
+          .style("fill-opacity", 0.08)
+          .style("stroke", dir => getDirectoryColor({ id: dir + "/_.js" }))
+          .style("stroke-opacity", 0.45)
+          .style("stroke-width", 1.5)
+          .style("stroke-dasharray", "5 4")
+          .style("stroke-linejoin", "round")
+          .style("pointer-events", "none");
+
+        // Label element – positioned at top-left hull vertex each tick
+        hullGroups.append("text")
+          .attr("class", "hull-label")
+          .text(dir => dir.toUpperCase())
+          .style("font-size", "9px")
+          .style("font-family", "'Inter', monospace")
+          .style("font-weight", "600")
+          .style("letter-spacing", "0.08em")
+          .style("fill", dir => getDirectoryColor({ id: dir + "/_.js" }))
+          .style("fill-opacity", 0.6)
+          .style("pointer-events", "none")
+          .style("text-transform", "uppercase");
 
         simulation.on("tick", () => {
           link
@@ -1307,6 +1946,52 @@
             .attr("x2", (d) => d.target.x)
             .attr("y2", (d) => d.target.y);
           nodeGroup.attr("transform", (d) => `translate(${d.x},${d.y})`);
+
+          // Redraw convex hulls every tick so they track live node positions
+          hullGroups.each(function(dir) {
+            const groupNodes = dirGroups.get(dir) || [];
+            // Need at least 3 points for a hull; pad duplicates if fewer
+            let pts = groupNodes
+              .filter(n => n.x != null && n.y != null)
+              .map(n => [n.x, n.y]);
+
+            const pad = getNodeRadius(groupNodes[0] || { complexityScore: 0 }) + 22;
+
+            if (pts.length === 0) return;
+            if (pts.length === 1) pts = [
+              [pts[0][0] - pad, pts[0][1] - pad],
+              [pts[0][0] + pad, pts[0][1] - pad],
+              [pts[0][0] + pad, pts[0][1] + pad],
+              [pts[0][0] - pad, pts[0][1] + pad],
+            ];
+            if (pts.length === 2) pts = [
+              [pts[0][0] - 1, pts[0][1] - 1], pts[0],
+              [pts[1][0] + 1, pts[1][1] + 1], pts[1],
+            ];
+
+            // Expand hull outward by `pad` pixels for breathing room
+            const hull = d3.polygonHull(pts);
+            if (!hull) return;
+
+            // Centroid for outward expansion
+            const cx = d3.mean(hull, p => p[0]);
+            const cy = d3.mean(hull, p => p[1]);
+            const expanded = hull.map(([hx, hy]) => {
+              const dx = hx - cx, dy = hy - cy;
+              const len = Math.sqrt(dx * dx + dy * dy) || 1;
+              return [hx + (dx / len) * pad, hy + (dy / len) * pad];
+            });
+
+            const pathStr = "M" + expanded.map(p => p.join(",")).join("L") + "Z";
+
+            d3.select(this).select(".hull-path").attr("d", pathStr);
+
+            // Place label at the topmost (min-Y) expanded vertex
+            const top = expanded.reduce((a, b) => b[1] < a[1] ? b : a);
+            d3.select(this).select(".hull-label")
+              .attr("x", top[0] + 4)
+              .attr("y", top[1] - 5);
+          });
         });
       }
 
