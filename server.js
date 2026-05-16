@@ -5,28 +5,19 @@ const path = require("path");
 const os = require("os");
 const crypto = require("crypto");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
-const OpenAI = require("openai");
 const session = require("express-session");
 const passport = require("passport");
 const GitHubStrategy = require("passport-github2").Strategy;
 const { Octokit } = require("@octokit/rest");
+const { runHealthScan } = require("./services/scanner-orchestrator");
+const { enrichWithGroq } = require("./services/groq-explainer");
 
 require("dotenv").config();
 
 const app = express();
 
-// Initialize Gemini 2.5 Flash API
+// Initialize Gemini 2.5 Flash API (used for other AI features, not health scan)
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
-// Initialize OpenRouter for Qwen3 Next 80B A3B (Free) using OpenAI SDK
-const openrouter = process.env.OPENROUTER_API_KEY ? new OpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY,
-  defaultHeaders: {
-    "HTTP-Referer": "https://github.com/your-repo/codeatlas",
-    "X-Title": "CodeAtlas Health Scanner",
-  },
-}) : null;
 
 const PORT = process.env.PORT || 3000;
 
@@ -499,7 +490,24 @@ app.post("/api/ingest", (req, res) => {
       `[${new Date().toISOString()}] Done: ${nodes.length} nodes, ${totalLinks} links`,
     );
     res.json({ nodes, links, repoPath: tmpDir });
+    // NOTE: tmpDir is intentionally NOT deleted here.
+    // The health-scan endpoint needs this directory to still exist on disk.
+    // Cleanup happens when the server process exits or when a new ingest runs.
+    console.log(
+      `[${new Date().toISOString()}] tmpDir kept for health-scan: ${tmpDir}`,
+    );
   } catch (error) {
+    // On failure the cloned directory is useless — delete it now.
+    try {
+      if (typeof tmpDir !== "undefined" && fs.existsSync(tmpDir))
+        fs.rmSync(tmpDir, { recursive: true, force: true, maxRetries: 3 });
+    } catch (cleanupErr) {
+      console.error(
+        `[${new Date().toISOString()}] Cleanup failed:`,
+        cleanupErr.message,
+      );
+    }
+
     console.error(`[${new Date().toISOString()}] Ingest error:`, error.message);
     let msg = "Failed to process repository.";
     if (
@@ -510,385 +518,12 @@ app.post("/api/ingest", (req, res) => {
     else if (error.message.includes("Authentication"))
       msg = "Repository is private or requires authentication.";
     res.status(500).json({ error: msg });
-  } finally {
-    try {
-      if (fs.existsSync(tmpDir))
-        fs.rmSync(tmpDir, { recursive: true, force: true, maxRetries: 3 });
-    } catch (e) {
-      console.error(`[${new Date().toISOString()}] Cleanup failed:`, e.message);
-    }
   }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/status
 // ─────────────────────────────────────────────────────────────────────────────
-// ─────────────────────────────────────────────────────────────────────────────
-// DeepSeek V4 Flash AI Helper Functions
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Call DeepSeek V4 Flash API via OpenRouter
- */
-async function callDeepSeekAI(prompt) {
-  // Use Gemini 2.5 Flash
-  if (!process.env.GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY not configured. Please add your Gemini API key to your .env file");
-  }
-
-  try {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return response.text();
-  } catch (error) {
-    console.error("Gemini 2.5 Flash API error:", error.message);
-    throw error;
-  }
-}
-
-// New function for Qwen3 Next 80B A3B (Free) via OpenRouter
-async function callQwen3Next(prompt, systemPrompt = "You are a helpful code analysis assistant. Respond only with valid JSON.") {
-  if (!openrouter) {
-    throw new Error("OPENROUTER_API_KEY not configured. Please add your OpenRouter API key to your .env file");
-  }
-
-  try {
-    const completion = await openrouter.chat.completions.create({
-      model: "qwen/qwen3-next-80b-a3b-instruct:free",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: prompt }
-      ],
-      temperature: 0.3,
-      max_tokens: 4000,
-    });
-
-    return completion.choices[0].message.content;
-  } catch (error) {
-    console.error("Qwen3 Next 80B API error:", error.message);
-    throw error;
-  }
-}
-
-/**
- * Scanner 1: Dead Code Detector
- * Finds exported functions/symbols that are never imported elsewhere
- */
-async function scanDeadCode(files) {
-  const issues = [];
-
-  try {
-    // Intelligent batching: Process up to 15 files in batches of 5
-    const filesToScan = files.slice(0, 15);
-    const BATCH_SIZE = 5;
-    const batches = [];
-    
-    for (let i = 0; i < filesToScan.length; i += BATCH_SIZE) {
-      batches.push(filesToScan.slice(i, i + BATCH_SIZE));
-    }
-
-    console.log(`[Dead Code] Processing ${filesToScan.length} files in ${batches.length} batches of ${BATCH_SIZE}`);
-
-    // Process batches sequentially, but files within each batch in parallel
-    for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
-      const batch = batches[batchIndex];
-      console.log(`[Dead Code] Processing batch ${batchIndex + 1}/${batches.length}...`);
-
-      const batchPromises = batch.map(async (file) => {
-        try {
-          const prompt = `Analyze this JavaScript/TypeScript file and identify all exported symbols (functions, classes, variables).
-For each export, determine if it appears to be unused (dead code).
-
-File: ${file.path}
-Content:
-${file.content.substring(0, 3000)}
-
-Return ONLY a JSON object with this exact structure:
-{
-  "exports": [
-    {
-      "name": "functionName",
-      "line": 42,
-      "isUnused": true,
-      "reason": "brief reason why it appears unused"
-    }
-  ]
-}
-
-If no dead code found, return: {"exports": []}`;
-
-          const response = await callQwen3Next(prompt, "You are a dead code analyzer. Respond only with valid JSON.");
-          const cleaned = response.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-          
-          const result = JSON.parse(cleaned);
-          const exports = result.exports || [];
-          
-          return exports
-            .filter(exp => exp.isUnused)
-            .map(exp => ({
-              path: file.path,
-              type: "dead_code",
-              severity: "high",
-              description: `Function '${exp.name}' is exported but ${exp.reason}`,
-              line: exp.line || 1,
-              symbol: exp.name,
-            }));
-        } catch (error) {
-          console.warn(`Failed to analyze ${file.path}:`, error.message);
-          return [];
-        }
-      });
-
-      // Wait for all files in this batch to complete
-      const batchResults = await Promise.all(batchPromises);
-      
-      // Flatten and add to issues
-      batchResults.forEach(fileIssues => {
-        issues.push(...fileIssues);
-      });
-
-      console.log(`[Dead Code] Batch ${batchIndex + 1} complete. Found ${batchResults.flat().length} issues.`);
-    }
-
-    console.log(`[Dead Code] Total issues found: ${issues.length}`);
-  } catch (error) {
-    console.error("Dead code scanner error:", error.message);
-  }
-
-  return issues;
-}
-
-/**
- * Scanner 2: Missing Test Detector
- * Identifies public functions without test coverage
- */
-async function scanMissingTests(files) {
-  const issues = [];
-
-  try {
-    // Separate source files from test files
-    const sourceFiles = files.filter(
-      (f) => !f.path.match(/\.(test|spec)\.(js|ts|jsx|tsx)$/)
-    );
-    const testFiles = files.filter((f) =>
-      f.path.match(/\.(test|spec)\.(js|ts|jsx|tsx)$/)
-    );
-
-    // Intelligent batching: Process up to 20 files in batches of 5 for parallel processing
-    const filesToScan = sourceFiles.slice(0, 20);
-    const BATCH_SIZE = 5;
-    const batches = [];
-    
-    for (let i = 0; i < filesToScan.length; i += BATCH_SIZE) {
-      batches.push(filesToScan.slice(i, i + BATCH_SIZE));
-    }
-
-    console.log(`[Missing Tests] Processing ${filesToScan.length} files in ${batches.length} batches of ${BATCH_SIZE}`);
-
-    // Process batches sequentially, but files within each batch in parallel
-    for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
-      const batch = batches[batchIndex];
-      console.log(`[Missing Tests] Processing batch ${batchIndex + 1}/${batches.length}...`);
-
-      const batchPromises = batch.map(async (file) => {
-        try {
-          // Find corresponding test file
-          const baseName = file.path.replace(/\.(js|ts|jsx|tsx)$/, "");
-          const testFile = testFiles.find(
-            (tf) =>
-              tf.path.includes(baseName) ||
-              tf.path.includes(file.path.split("/").pop().replace(/\.(js|ts)$/, ""))
-          );
-
-          const testContent = testFile ? testFile.content.substring(0, 2000) : "No test file found";
-
-          const prompt = `Analyze this source file and identify public functions that lack test coverage.
-
-Source File: ${file.path}
-Source Content:
-${file.content.substring(0, 3000)}
-
-Test File Content:
-${testContent}
-
-Return ONLY a JSON object with this exact structure:
-{
-  "functions": [
-    {
-      "name": "functionName",
-      "line": 89,
-      "isCritical": true,
-      "reason": "brief reason why this needs testing"
-    }
-  ]
-}
-
-If all functions are tested, return: {"functions": []}`;
-
-          const response = await callQwen3Next(prompt, "You are a test coverage analyzer. Respond only with valid JSON.");
-          const cleaned = response.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-          
-          const result = JSON.parse(cleaned);
-          const functions = result.functions || [];
-          
-          return functions.map(func => ({
-            path: file.path,
-            type: "missing_test",
-            severity: func.isCritical ? "high" : "medium",
-            description: `Function '${func.name}' has no test coverage. ${func.reason}`,
-            line: func.line || 1,
-            symbol: func.name,
-          }));
-        } catch (error) {
-          console.warn(`Failed to analyze ${file.path}:`, error.message);
-          return [];
-        }
-      });
-
-      // Wait for all files in this batch to complete
-      const batchResults = await Promise.all(batchPromises);
-      
-      // Flatten and add to issues
-      batchResults.forEach(fileIssues => {
-        issues.push(...fileIssues);
-      });
-
-      console.log(`[Missing Tests] Batch ${batchIndex + 1} complete. Found ${batchResults.flat().length} issues.`);
-    }
-
-    console.log(`[Missing Tests] Total issues found: ${issues.length}`);
-  } catch (error) {
-    console.error("Missing test scanner error:", error.message);
-  }
-
-  return issues;
-}
-
-/**
- * Scanner 3: Doc Gap Finder
- * Finds undocumented public functions
- */
-async function scanDocGaps(files) {
-  const issues = [];
-
-  try {
-    // Intelligent batching: Process up to 15 files in batches of 5
-    const filesToScan = files.slice(0, 15);
-    const BATCH_SIZE = 5;
-    const batches = [];
-    
-    for (let i = 0; i < filesToScan.length; i += BATCH_SIZE) {
-      batches.push(filesToScan.slice(i, i + BATCH_SIZE));
-    }
-
-    console.log(`[Doc Gaps] Processing ${filesToScan.length} files in ${batches.length} batches of ${BATCH_SIZE}`);
-
-    // Process batches sequentially, but files within each batch in parallel
-    for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
-      const batch = batches[batchIndex];
-      console.log(`[Doc Gaps] Processing batch ${batchIndex + 1}/${batches.length}...`);
-
-      const batchPromises = batch.map(async (file) => {
-        try {
-          const prompt = `Analyze this file and identify public functions/methods that lack proper documentation (JSDoc comments).
-
-File: ${file.path}
-Content:
-${file.content.substring(0, 3000)}
-
-Return ONLY a JSON object with this exact structure:
-{
-  "functions": [
-    {
-      "name": "functionName",
-      "line": 234,
-      "isPublicAPI": true,
-      "purpose": "inferred purpose of the function"
-    }
-  ]
-}
-
-If all public functions are documented, return: {"functions": []}`;
-
-          const response = await callQwen3Next(prompt, "You are a documentation analyzer. Respond only with valid JSON.");
-          const cleaned = response.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-          
-          const result = JSON.parse(cleaned);
-          const functions = result.functions || [];
-          
-          return functions.map(func => ({
-            path: file.path,
-            type: "doc_gap",
-            severity: func.isPublicAPI ? "medium" : "low",
-            description: `Public function '${func.name}' is missing JSDoc documentation. Purpose: ${func.purpose}`,
-            line: func.line || 1,
-            symbol: func.name,
-          }));
-        } catch (error) {
-          console.warn(`Failed to analyze ${file.path}:`, error.message);
-          return [];
-        }
-      });
-
-      // Wait for all files in this batch to complete
-      const batchResults = await Promise.all(batchPromises);
-      
-      // Flatten and add to issues
-      batchResults.forEach(fileIssues => {
-        issues.push(...fileIssues);
-      });
-
-      console.log(`[Doc Gaps] Batch ${batchIndex + 1} complete. Found ${batchResults.flat().length} issues.`);
-    }
-
-    console.log(`[Doc Gaps] Total issues found: ${issues.length}`);
-  } catch (error) {
-    console.error("Doc gap scanner error:", error.message);
-  }
-
-  return issues;
-}
-
-/**
- * Aggregate results from all three scanners
- */
-function aggregateHealthScanResults(deadCode, testGaps, docGaps) {
-  const allIssues = [...deadCode, ...testGaps, ...docGaps];
-
-  // Group by file
-  const fileMap = new Map();
-
-  for (const issue of allIssues) {
-    if (!fileMap.has(issue.path)) {
-      fileMap.set(issue.path, {
-        path: issue.path,
-        issues: [],
-      });
-    }
-    fileMap.get(issue.path).issues.push(issue);
-  }
-
-  // Calculate summary
-  const summary = {
-    totalIssues: allIssues.length,
-    deadCode: deadCode.length,
-    missingTests: testGaps.length,
-    docGaps: docGaps.length,
-  };
-
-  return {
-    summary,
-    files: Array.from(fileMap.values()),
-    metadata: {
-      scannedAt: new Date().toISOString(),
-      repository: cachedRepoFiles?.repoUrl || "unknown",
-      filesScanned: fileMap.size,
-      scanDuration: "0ms", // Will be updated by caller
-    },
-  };
-}
-
 app.get("/api/status", (req, res) => {
   res.json({
     status: "ok",
@@ -898,69 +533,82 @@ app.get("/api/status", (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GET /api/health-scan  (Live AI-powered scanning with DeepSeek V4 Flash)
+// GET /api/status
 // ─────────────────────────────────────────────────────────────────────────────
-app.get("/api/health-scan", async (req, res) => {
-  const startTime = Date.now();
+app.get("/api/status", (req, res) => {
+  res.json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    version: "1.0.0",
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/health-scan  — Stub: guide callers to use POST instead
+// ─────────────────────────────────────────────────────────────────────────────
+app.get("/api/health-scan", (req, res) => {
+  res.status(400).json({
+    error: "Method not allowed",
+    message: "Use POST /api/health-scan with { repoPath } in the request body.",
+    hint: "repoPath is returned by POST /api/ingest as data.repoPath and stored in localStorage.",
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/health-scan
+// Body: { repoPath: "/absolute/path/to/cloned/repo" }
+// Runs 3 parallel scanners via the orchestrator, then enriches the top-5
+// issues with a one-sentence Groq (Llama 3 8B) explanation (if GROQ_API_KEY is set).
+// ─────────────────────────────────────────────────────────────────────────────
+app.post("/api/health-scan", async (req, res) => {
+  const { repoPath } = req.body;
+
+  // Validate input
+  if (!repoPath) {
+    return res.status(400).json({
+      error: "repoPath is required",
+      message:
+        "Provide the absolute path to the cloned repository in the request body.",
+    });
+  }
+
+  // Verify the path actually exists on disk
+  if (!fs.existsSync(repoPath)) {
+    return res.status(404).json({
+      error: "Repository path not found",
+      message: `No directory exists at: ${repoPath}. Re-analyse the repository to get a fresh path.`,
+    });
+  }
 
   try {
-    // Check if API key is configured
-    if (!openrouter) {
-      return res.status(503).json({
-        error: "OPENROUTER_API_KEY not configured",
-        message: "Please add your OpenRouter API key to the .env file. Get your key from: https://openrouter.ai/keys",
-        hint: "Make sure to replace 'your_openrouter_api_key_here' with your actual API key and restart the server",
-      });
-    }
-
-    // Check if repository files are cached
-    if (!cachedRepoFiles || !cachedRepoFiles.files || cachedRepoFiles.files.length === 0) {
-      return res.status(400).json({
-        error: "No repository analyzed yet",
-        message: "Please analyze a repository first using the Architecture Map",
-      });
-    }
-
-    // Check if cache is stale (older than 1 hour)
-    const cacheAge = Date.now() - cachedRepoFiles.timestamp;
-    if (cacheAge > 3600000) {
-      return res.status(400).json({
-        error: "Repository cache expired",
-        message: "Please re-analyze the repository (cache older than 1 hour)",
-      });
-    }
-
-    console.log(`[${new Date().toISOString()}] Starting health scan with Qwen3 Next 80B...`);
-    console.log(`[${new Date().toISOString()}] Scanning ${cachedRepoFiles.files.length} files`);
-
-    // Run three AI scanners in parallel
-    const [deadCodeResults, testGapResults, docGapResults] = await Promise.all([
-      scanDeadCode(cachedRepoFiles.files),
-      scanMissingTests(cachedRepoFiles.files),
-      scanDocGaps(cachedRepoFiles.files),
-    ]);
-
-    console.log(`[${new Date().toISOString()}] Scan complete - Dead Code: ${deadCodeResults.length}, Missing Tests: ${testGapResults.length}, Doc Gaps: ${docGapResults.length}`);
-
-    // Aggregate and format results
-    const healthScanData = aggregateHealthScanResults(
-      deadCodeResults,
-      testGapResults,
-      docGapResults
+    console.log(
+      `[${new Date().toISOString()}] POST /api/health-scan — path: ${repoPath}`,
     );
 
-    // Update scan duration
-    const scanDuration = Date.now() - startTime;
-    healthScanData.metadata.scanDuration = `${scanDuration}ms`;
+    // Run all 3 scanners in parallel via the orchestrator
+    const scanResult = await runHealthScan(repoPath);
 
-    res.json(healthScanData);
+    // Enrich the top-5 issues with Groq explanations (non-blocking on failure)
+    if (process.env.GROQ_API_KEY) {
+      // Flatten all issues into a single array for enrichment
+      const allIssues = scanResult.files.flatMap((f) => f.issues);
+      await enrichWithGroq(allIssues);
+    } else {
+      console.log(
+        `[${new Date().toISOString()}] GROQ_API_KEY not set — skipping enrichment`,
+      );
+    }
+
+    res.json(scanResult);
   } catch (error) {
-    console.error(`[${new Date().toISOString()}] Health scan error:`, error.message);
-    
-    // Return user-friendly error message
+    console.error(
+      `[${new Date().toISOString()}] Health scan error:`,
+      error.message,
+    );
     res.status(500).json({
       error: "Health scan failed",
-      message: error.message || "An unexpected error occurred during the health scan",
+      message:
+        error.message || "An unexpected error occurred during the health scan",
       details: process.env.NODE_ENV === "development" ? error.stack : undefined,
     });
   }
@@ -1211,16 +859,20 @@ app.post("/api/analyze-file", async (req, res) => {
     const urlObj = new URL(repoUrl);
     const pathParts = urlObj.pathname.split("/").filter(Boolean);
     if (pathParts.length < 2) {
-      return res.status(400).json({ error: "Invalid GitHub repository URL format." });
+      return res
+        .status(400)
+        .json({ error: "Invalid GitHub repository URL format." });
     }
     const owner = pathParts[0];
     const repo = pathParts[1];
-    
+
     const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/HEAD/${filePath}`;
-    
+
     const githubRes = await fetch(rawUrl);
     if (!githubRes.ok) {
-      return res.status(githubRes.status).json({ error: `Failed to fetch file from GitHub: ${githubRes.statusText}` });
+      return res.status(githubRes.status).json({
+        error: `Failed to fetch file from GitHub: ${githubRes.statusText}`,
+      });
     }
     const rawContent = await githubRes.text();
 

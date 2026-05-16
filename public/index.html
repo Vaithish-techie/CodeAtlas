@@ -1055,6 +1055,10 @@
             const data = JSON.parse(cachedData);
             currentData = data;
             currentRepoPath = data.repoPath;
+            // NOTE: Do NOT persist repoPath to localStorage here.
+            // This is a cache restore from a previous session; the tmpDir
+            // that repoPath points to was deleted when the server restarted.
+            // localStorage will be updated only after a fresh /api/ingest call.
             currentRepoUrl = data.repoUrl || sessionStorage.getItem("repoUrl");
 
             nodeCountEl.textContent = data.nodes.length;
@@ -1093,6 +1097,10 @@
           return;
         }
 
+        // Clear any stale repoPath before we start a fresh analysis.
+        // This guarantees health.html never uses an old deleted tmpDir.
+        localStorage.removeItem("repoPath");
+
         btn.disabled = true;
         loader.style.display = "block";
         svg.selectAll("*").remove();
@@ -1116,6 +1124,7 @@
           const data = await response.json();
           currentData = data;
           currentRepoPath = data.repoPath; // Store repo path for AI analysis
+          localStorage.setItem("repoPath", data.repoPath); // Persist for health scan
           currentRepoUrl = url; // Store the GitHub URL
 
           // Save to session storage

@@ -46,6 +46,12 @@
         margin-bottom: 15px;
       }
 
+      .header-actions {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
       .back-btn {
         display: inline-block;
         padding: 8px 16px;
@@ -56,11 +62,23 @@
         font-size: 14px;
         border: 1px solid #30363d;
         transition: all 0.2s;
+        cursor: pointer;
       }
 
       .back-btn:hover {
         background: #30363d;
         border-color: #58a6ff;
+      }
+
+      .rescan-btn {
+        background: #238636;
+        color: white;
+        border-color: #238636;
+      }
+
+      .rescan-btn:hover {
+        background: #2ea043;
+        border-color: #2ea043;
       }
 
       /* Score Cards */
@@ -332,6 +350,198 @@
         }
       }
 
+      /* ── Info icon + custom tooltip ───────────────────────────────────── */
+      .info-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        background: #30363d;
+        color: #8b949e;
+        font-size: 10px;
+        font-style: normal;
+        font-weight: 700;
+        line-height: 1;
+        cursor: default;
+        position: relative;
+        margin-left: 6px;
+        flex-shrink: 0;
+        vertical-align: middle;
+        /* tooltip anchor */
+      }
+
+      .info-icon::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        bottom: calc(100% + 8px);
+        left: 50%;
+        transform: translateX(-50%);
+        background: #1c2128;
+        color: #c9d1d9;
+        font-size: 12px;
+        font-weight: 400;
+        line-height: 1.5;
+        white-space: normal;
+        width: 220px;
+        padding: 8px 10px;
+        border-radius: 6px;
+        border: 1px solid #30363d;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.15s ease;
+        z-index: 100;
+        text-align: left;
+      }
+
+      /* small caret pointing down */
+      .info-icon::before {
+        content: "";
+        position: absolute;
+        bottom: calc(100% + 2px);
+        left: 50%;
+        transform: translateX(-50%);
+        border: 5px solid transparent;
+        border-top-color: #30363d;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.15s ease;
+        z-index: 101;
+      }
+
+      .info-icon:hover::after,
+      .info-icon:hover::before {
+        opacity: 1;
+      }
+
+      /* ── Compact issue row ─────────────────────────────────────────────── */
+      .issue-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        border-left: 3px solid;
+        border-radius: 4px;
+        background: #0d1117;
+        margin-bottom: 8px;
+        font-size: 13px;
+        line-height: 1.4;
+        transition: background 0.15s;
+      }
+
+      .issue-row:hover {
+        background: #161b22;
+      }
+
+      .issue-row.sev-high {
+        border-left-color: #ff7b72;
+      }
+      .issue-row.sev-medium {
+        border-left-color: #d29922;
+      }
+      .issue-row.sev-low {
+        border-left-color: #58a6ff;
+      }
+
+      .issue-row .sep {
+        color: #484f58;
+        margin: 0 2px;
+      }
+
+      .issue-row .meta {
+        color: #6e7681;
+        font-family: monospace;
+        font-size: 12px;
+        white-space: nowrap;
+      }
+
+      /* ── Enhanced AI Insight Block ─────────────────────────────────────── */
+      .issue-ai {
+        margin: 0 0 12px 16px;
+        padding: 18px 20px;
+        background: linear-gradient(
+          135deg,
+          rgba(88, 166, 255, 0.12) 0%,
+          rgba(88, 166, 255, 0.06) 100%
+        );
+        border: 1px solid rgba(88, 166, 255, 0.35);
+        border-left: 4px solid #58a6ff;
+        border-radius: 8px;
+        font-size: 14px;
+        color: #c9d1d9;
+        line-height: 1.6;
+        box-shadow:
+          0 4px 12px rgba(0, 0, 0, 0.3),
+          0 0 0 1px rgba(88, 166, 255, 0.1);
+        position: relative;
+        transition: all 0.2s ease;
+      }
+
+      .issue-ai:hover {
+        box-shadow:
+          0 6px 16px rgba(0, 0, 0, 0.4),
+          0 0 0 1px rgba(88, 166, 255, 0.2);
+        transform: translateX(2px);
+      }
+
+      .issue-ai::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, #58a6ff 0%, transparent 100%);
+        border-radius: 8px 8px 0 0;
+      }
+
+      .issue-ai-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+        font-weight: 700;
+        color: #58a6ff;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      .issue-ai-icon {
+        width: 20px;
+        height: 20px;
+        background: rgba(88, 166, 255, 0.2);
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        flex-shrink: 0;
+      }
+
+      .issue-ai-content {
+        color: #e6edf3;
+        font-size: 14.5px;
+        line-height: 1.8;
+        font-weight: 400;
+        letter-spacing: 0.2px;
+      }
+
+      .cache-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        background: rgba(88, 166, 255, 0.1);
+        border: 1px solid rgba(88, 166, 255, 0.3);
+        border-radius: 4px;
+        font-size: 11px;
+        color: #58a6ff;
+        margin-left: 12px;
+      }
+
       /* Scrollbar */
       ::-webkit-scrollbar {
         width: 10px;
@@ -354,38 +564,56 @@
   <body>
     <div class="container">
       <header>
-        <h1>🏥 Health Scan Dashboard</h1>
+        <h1>
+          🏥 Health Scan Dashboard
+          <span
+            id="cacheIndicator"
+            class="cache-indicator"
+            style="display: none"
+          >
+            ⚡ Cached Result
+          </span>
+        </h1>
         <p class="subtitle">
           AI-powered code health analysis: Dead Code, Missing Tests, and
           Documentation Gaps
         </p>
-        <a href="index.html" class="back-btn">← Back to Architecture Map</a>
-        <a
-          href="fixes.html"
-          class="back-btn"
-          style="
-            margin-left: 12px;
-            background: #238636;
-            color: white;
-            border-color: #238636;
-          "
-        >
-          View Auto-Fixes →
-        </a>
+        <div class="header-actions">
+          <a href="index.html" class="back-btn">← Back to Architecture Map</a>
+          <a
+            href="fixes.html"
+            class="back-btn"
+            style="background: #238636; color: white; border-color: #238636"
+          >
+            View Auto-Fixes →
+          </a>
+          <button
+            id="rescanBtn"
+            class="back-btn rescan-btn"
+            style="display: none"
+          >
+            🔄 Re-Scan
+          </button>
+        </div>
       </header>
 
       <div id="loading" class="loading">
         <div class="loading-spinner"></div>
         <div class="loading-text">
-          <div style="font-size: 18px; margin-bottom: 12px;">🤖 AI Health Scan in Progress...</div>
-          <div id="loadingStatus" style="font-size: 14px; color: #8b949e;">
-            Initializing Qwen3 Next 80B...
+          <div style="font-size: 18px; margin-bottom: 12px">
+            ⚡ Code Health Scan in Progress...
           </div>
-          <div id="loadingTimer" style="font-size: 12px; color: #6e7681; margin-top: 8px;">
+          <div id="loadingStatus" style="font-size: 14px; color: #8b949e">
+            Running 3 parallel scanners...
+          </div>
+          <div
+            id="loadingTimer"
+            style="font-size: 12px; color: #6e7681; margin-top: 8px"
+          >
             Elapsed: <span id="elapsedTime">0</span>s
           </div>
-          <div style="font-size: 12px; color: #6e7681; margin-top: 4px;">
-            ⏱️ AI analysis may take 30-60 seconds
+          <div style="font-size: 12px; color: #6e7681; margin-top: 4px">
+            ⚡ Static analysis usually takes 2–5 seconds
           </div>
         </div>
       </div>
@@ -396,15 +624,53 @@
           <div class="score-card dead-code">
             <div class="score-card-header">
               <div class="score-card-icon">💀</div>
-              <div class="score-card-title">Dead Code</div>
+              <div class="score-card-title">
+                Dead Code
+                <i
+                  class="info-icon"
+                  data-tooltip="Files that are never imported or required by any other file in the repository."
+                  >ⓘ</i
+                >
+              </div>
             </div>
             <div class="score-card-value" id="deadCodeCount">0</div>
+          </div>
+
+          <div
+            class="score-card"
+            style="border-color: #30363d; background: #161b22"
+          >
+            <div class="score-card-header">
+              <div class="score-card-icon">🔄</div>
+              <div class="score-card-title">
+                Circular Deps
+                <i
+                  class="info-icon"
+                  data-tooltip="Files that import each other in a closed loop, which can cause runtime errors and architectural debt."
+                  >ⓘ</i
+                >
+              </div>
+            </div>
+            <div
+              class="score-card-value"
+              id="circularDepsCount"
+              style="color: #e3b341"
+            >
+              0
+            </div>
           </div>
 
           <div class="score-card missing-tests">
             <div class="score-card-header">
               <div class="score-card-icon">🧪</div>
-              <div class="score-card-title">Missing Tests</div>
+              <div class="score-card-title">
+                Missing Tests
+                <i
+                  class="info-icon"
+                  data-tooltip="Source files that do not have a corresponding test file (.test.js, .spec.js, etc.)."
+                  >ⓘ</i
+                >
+              </div>
             </div>
             <div class="score-card-value" id="missingTestsCount">0</div>
           </div>
@@ -412,9 +678,53 @@
           <div class="score-card doc-gaps">
             <div class="score-card-header">
               <div class="score-card-icon">📝</div>
-              <div class="score-card-title">Doc Gaps</div>
+              <div class="score-card-title">
+                Doc Gaps
+                <i
+                  class="info-icon"
+                  data-tooltip="Exported functions, classes, or variables that lack JSDoc documentation."
+                  >ⓘ</i
+                >
+              </div>
             </div>
             <div class="score-card-value" id="docGapsCount">0</div>
+          </div>
+        </div>
+
+        <!-- AI Enrichment Notice -->
+        <div
+          style="
+            background: linear-gradient(
+              135deg,
+              rgba(88, 166, 255, 0.1) 0%,
+              rgba(88, 166, 255, 0.05) 100%
+            );
+            border: 1px solid rgba(88, 166, 255, 0.3);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+          "
+        >
+          <div style="font-size: 24px; flex-shrink: 0">🎯</div>
+          <div>
+            <div
+              style="
+                font-weight: 600;
+                color: #58a6ff;
+                font-size: 14px;
+                margin-bottom: 4px;
+              "
+            >
+              AI Risk Analysis Enabled
+            </div>
+            <div style="font-size: 13px; color: #8b949e; line-height: 1.5">
+              Groq AI has analyzed the
+              <strong style="color: #c9d1d9">top 5 most critical issues</strong>
+              to provide actionable risk insights and remediation guidance.
+            </div>
           </div>
         </div>
 
@@ -451,96 +761,168 @@
     </div>
 
     <script>
-      // Fetch health scan data on page load
-      async function loadHealthScan() {
+      // ── Guard: require a repoPath from localStorage ──────────────────────
+      const repoPath = localStorage.getItem("repoPath");
+
+      if (!repoPath) {
+        // No repository has been analysed yet — show a friendly gate screen
+        document.getElementById("loading").style.display = "none";
+        document.getElementById("error").innerHTML = `
+          <div class="error">
+            <div class="error-title">⚠️ No Repository Analysed Yet</div>
+            <div style="margin-top: 10px;">
+              Please analyse a repository first before running the Health Scan.
+            </div>
+            <div style="margin-top: 16px;">
+              <a href="index.html" style="
+                display: inline-block;
+                padding: 10px 20px;
+                background: #238636;
+                color: white;
+                border-radius: 6px;
+                text-decoration: none;
+                font-weight: 600;
+                font-size: 14px;
+              ">← Go to Architecture Map</a>
+            </div>
+          </div>
+        `;
+        document.getElementById("error").style.display = "block";
+      } else {
+        // Check cache first, then kick off the scan if needed
+        initHealthScan(repoPath);
+      }
+
+      // ── Re-scan button handler ────────────────────────────────────────────
+      document
+        .getElementById("rescanBtn")
+        .addEventListener("click", function () {
+          const cacheKey = `scanResult_${repoPath}`;
+          sessionStorage.removeItem(cacheKey);
+          document.getElementById("cacheIndicator").style.display = "none";
+          document.getElementById("content").style.display = "none";
+          document.getElementById("error").style.display = "none";
+          loadHealthScan(repoPath, false);
+        });
+
+      // ── Initialize: check cache or fetch ──────────────────────────────────
+      function initHealthScan(repoPath) {
+        const cacheKey = `scanResult_${repoPath}`;
+        const cached = sessionStorage.getItem(cacheKey);
+
+        if (cached) {
+          // Cache hit! Parse and render immediately
+          try {
+            const data = JSON.parse(cached);
+            console.log("[Cache] Using cached scan result");
+            document.getElementById("loading").style.display = "none";
+            document.getElementById("cacheIndicator").style.display =
+              "inline-flex";
+            document.getElementById("rescanBtn").style.display = "inline-block";
+            renderScanResult(data);
+            document.getElementById("content").style.display = "block";
+          } catch (err) {
+            console.error("[Cache] Failed to parse cached data:", err);
+            sessionStorage.removeItem(cacheKey);
+            loadHealthScan(repoPath, false);
+          }
+        } else {
+          // No cache, fetch from API
+          loadHealthScan(repoPath, false);
+        }
+      }
+
+      // ── Main scan function ────────────────────────────────────────────────
+      async function loadHealthScan(repoPath, fromCache) {
         const loadingEl = document.getElementById("loading");
         const contentEl = document.getElementById("content");
         const errorEl = document.getElementById("error");
         const statusEl = document.getElementById("loadingStatus");
         const timerEl = document.getElementById("elapsedTime");
 
-        // Start timer
-        let startTime = Date.now();
+        loadingEl.style.display = "block";
+        contentEl.style.display = "none";
+        errorEl.style.display = "none";
+
+        // Update loading text to reflect the real scanners
+        statusEl.textContent = "Running 3 parallel scanners...";
+
+        // Start elapsed timer
+        const startTime = Date.now();
         const timerInterval = setInterval(() => {
-          const elapsed = Math.floor((Date.now() - startTime) / 1000);
-          timerEl.textContent = elapsed;
+          timerEl.textContent = Math.floor((Date.now() - startTime) / 1000);
         }, 1000);
 
-        // Update status messages
+        // Rotate status messages while the POST is in flight
         const statusMessages = [
-          "Connecting to Qwen3 Next 80B...",
-          "Running Dead Code Detector...",
-          "Running Missing Test Detector...",
-          "Running Doc Gap Finder...",
-          "Analyzing results...",
+          "Running 3 parallel scanners...",
+          "Dead Code Detector running...",
+          "Missing Test Detector running...",
+          "Doc Gap Finder running...",
+          "Enriching top issues with Groq AI...",
+          "Aggregating results...",
         ];
         let statusIndex = 0;
         const statusInterval = setInterval(() => {
-          if (statusIndex < statusMessages.length) {
-            statusEl.textContent = statusMessages[statusIndex];
-            statusIndex++;
-          }
-        }, 8000); // Change status every 8 seconds
+          statusIndex = (statusIndex + 1) % statusMessages.length;
+          statusEl.textContent = statusMessages[statusIndex];
+        }, 6000);
 
         try {
-          const response = await fetch("/api/health-scan");
-          
-          // Clear intervals
+          const response = await fetch("/api/health-scan", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ repoPath }),
+          });
+
           clearInterval(timerInterval);
           clearInterval(statusInterval);
 
           if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(
+              errData.message || errData.error || `HTTP ${response.status}`,
+            );
           }
 
           const data = await response.json();
 
-          // Update score cards
-          document.getElementById("deadCodeCount").textContent =
-            data.summary.deadCode;
-          document.getElementById("missingTestsCount").textContent =
-            data.summary.missingTests;
-          document.getElementById("docGapsCount").textContent =
-            data.summary.docGaps;
-          document.getElementById("totalIssues").textContent =
-            data.summary.totalIssues;
+          // Cache the result in sessionStorage
+          const cacheKey = `scanResult_${repoPath}`;
+          sessionStorage.setItem(cacheKey, JSON.stringify(data));
+          console.log("[Cache] Scan result cached");
 
-          // Update metadata
-          document.getElementById("repoName").textContent =
-            data.metadata.repository;
-          document.getElementById("filesScanned").textContent =
-            data.metadata.filesScanned;
-          document.getElementById("scanDuration").textContent =
-            data.metadata.scanDuration;
-          document.getElementById("scannedAt").textContent = new Date(
-            data.metadata.scannedAt,
-          ).toLocaleString();
+          // Show re-scan button
+          document.getElementById("rescanBtn").style.display = "inline-block";
 
-          // Render issues list
-          renderIssues(data.files);
+          renderScanResult(data);
 
-          // Show content, hide loading
           loadingEl.style.display = "none";
           contentEl.style.display = "block";
         } catch (error) {
-          console.error("Health scan error:", error);
-          
-          // Clear intervals
           clearInterval(timerInterval);
           clearInterval(statusInterval);
+          console.error("Health scan error:", error);
 
           errorEl.innerHTML = `
             <div class="error">
               <div class="error-title">❌ Health Scan Failed</div>
               <div>${error.message}</div>
               <div style="margin-top: 12px; font-size: 14px;">
-                Make sure you've analyzed a repository first using the Architecture Map.
+                Make sure you have analysed a repository first. If the path has
+                expired, go back to the Architecture Map and re-analyse.
               </div>
-              <div style="margin-top: 12px; font-size: 14px; color: #8b949e;">
-                <strong>Troubleshooting:</strong><br>
-                • Check if the server was restarted after adding the API key<br>
-                • Verify your OPENROUTER_API_KEY is set in the .env file<br>
-                • Check the server console for detailed error messages
+              <div style="margin-top: 16px;">
+                <a href="index.html" style="
+                  display: inline-block;
+                  padding: 10px 20px;
+                  background: #21262d;
+                  color: #58a6ff;
+                  border: 1px solid #30363d;
+                  border-radius: 6px;
+                  text-decoration: none;
+                  font-size: 14px;
+                ">← Back to Architecture Map</a>
               </div>
             </div>
           `;
@@ -549,6 +931,37 @@
           errorEl.style.display = "block";
         }
       }
+
+      // ── Render scan result ────────────────────────────────────────────────
+      function renderScanResult(data) {
+        // ── Score cards ────────────────────────────────────────────────────
+        document.getElementById("deadCodeCount").textContent =
+          data.summary.deadCode || 0;
+        document.getElementById("circularDepsCount").textContent =
+          data.summary.circularDeps || 0;
+        document.getElementById("missingTestsCount").textContent =
+          data.summary.missingTests || 0;
+        document.getElementById("docGapsCount").textContent =
+          data.summary.docGaps || 0;
+        document.getElementById("totalIssues").textContent =
+          data.summary.totalIssues || 0;
+
+        // ── Metadata ───────────────────────────────────────────────────────
+        document.getElementById("repoName").textContent =
+          repoPath.split("/").pop() || repoPath;
+        document.getElementById("filesScanned").textContent =
+          data.metadata.filesScanned;
+        document.getElementById("scanDuration").textContent =
+          data.metadata.scanDuration;
+        document.getElementById("scannedAt").textContent = new Date(
+          data.metadata.scannedAt,
+        ).toLocaleString();
+
+        // ── Issues list ────────────────────────────────────────────────────
+        renderIssues(data.files);
+      }
+
+      // ── Render helpers ────────────────────────────────────────────────────
 
       function renderIssues(files) {
         const issuesListEl = document.getElementById("issuesList");
@@ -575,30 +988,41 @@
           fileGroupEl.appendChild(filePathEl);
 
           file.issues.forEach((issue) => {
-            const issueCardEl = document.createElement("div");
-            issueCardEl.className = `issue-card severity-${issue.severity}`;
+            // ── Compact single-line row ──────────────────────────────────────
+            const lineInfo = issue.line ? `Line ${issue.line}` : "-";
+            const symbolInfo = issue.symbol || "-";
+            const typeLabel = issue.type.replace(/_/g, "\u00a0");
 
-            issueCardEl.innerHTML = `
-              <div class="issue-header">
-                <span class="severity-badge ${issue.severity}">${issue.severity}</span>
-                <span class="issue-type">${issue.type.replace(/_/g, " ")}</span>
-              </div>
-              <div class="issue-description">${issue.description}</div>
-              <div class="issue-meta">
-                <span>Line ${issue.line}</span>
-                <span>Symbol: ${issue.symbol}</span>
-              </div>
-            `;
+            const rowEl = document.createElement("div");
+            rowEl.className = `issue-row sev-${issue.severity}`;
+            rowEl.innerHTML =
+              `<span class="severity-badge ${issue.severity}">${issue.severity}</span>` +
+              `<span class="issue-type">${typeLabel}</span>` +
+              `<span class="sep">|</span>` +
+              `<span class="meta">Line:&nbsp;${lineInfo}</span>` +
+              `<span class="sep">|</span>` +
+              `<span class="meta">Symbol:&nbsp;${symbolInfo}</span>`;
 
-            fileGroupEl.appendChild(issueCardEl);
+            fileGroupEl.appendChild(rowEl);
+
+            // ── Enhanced AI Insight block ─────────────────────────────────────
+            if (issue.bobSummary) {
+              const aiEl = document.createElement("div");
+              aiEl.className = "issue-ai";
+              aiEl.innerHTML = `
+                <div class="issue-ai-header">
+                  <span class="issue-ai-icon">AI</span>
+                  <span>Risk Analysis</span>
+                </div>
+                <div class="issue-ai-content">${issue.bobSummary}</div>
+              `;
+              fileGroupEl.appendChild(aiEl);
+            }
           });
 
           issuesListEl.appendChild(fileGroupEl);
         });
       }
-
-      // Load data when page loads
-      loadHealthScan();
     </script>
   </body>
 </html>
