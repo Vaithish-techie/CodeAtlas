@@ -117,7 +117,7 @@
       </div>
       <div id="node-tooltip"></div>
       <div id="complexity-tooltip"></div>
-      <svg></svg>
+      <svg id="main-svg"></svg>
     </div>
     <div id="intelligence-panel">
       <div class="panel-header">
@@ -453,7 +453,7 @@
       const stats = document.getElementById("stats");
       const nodeCountEl = document.getElementById("nodeCount");
       const linkCountEl = document.getElementById("linkCount");
-      const svg = d3.select("svg");
+      const svg = d3.select("#main-svg");
       const tooltip = document.getElementById("complexity-tooltip");
       const intelligencePanel = document.getElementById("intelligence-panel");
       const closePanel = document.getElementById("closePanel");
@@ -532,20 +532,6 @@
       }
       // ─────────────────────────────────────────────────────────────────────
 
-      // Helper function: Get node radius based on connections + complexity
-      function getNodeRadius(d) {
-        const connectionCount = currentData.links.filter(
-          (l) =>
-            (l.source.id || l.source) === d.id ||
-            (l.target.id || l.target) === d.id,
-        ).length;
-        const baseSize = 5 + Math.sqrt(connectionCount) * 3;
-        const complexityBonus = d.complexityScore
-          ? (d.complexityScore / 100) * 8
-          : 0;
-        return Math.min(baseSize + complexityBonus, 28);
-      }
-
       // Helper function: Get node color by complexity
       function getNodeColor(d) {
         const score = d.complexityScore || 0;
@@ -556,7 +542,8 @@
 
       // Helper function: Get directory-based stroke color for clustering
       function getDirectoryColor(d) {
-        const topDir = d.id.split("/")[0];
+        const id = d.id || "";
+        const topDir = id.split("/")[0];
         const palette = [
           "#6366f1",
           "#06b6d4",
@@ -580,15 +567,6 @@
         return "url(#glow-0)"; // green
       }
 
-      // Helper function: Check if node is a hub (3+ connections)
-      function isHubNode(d) {
-        const connectionCount = currentData.links.filter(
-          (l) =>
-            (l.source.id || l.source) === d.id ||
-            (l.target.id || l.target) === d.id,
-        ).length;
-        return connectionCount >= 3;
-      }
 
       // Helper function: Update stats bar
       function updateStatsBar(nodes, links) {
@@ -1161,6 +1139,8 @@
       });
 
       function renderGraph(nodes, links) {
+        if (simulation) simulation.stop(); // Stop previous simulation if it exists
+
         const width = document.getElementById("graph-container").clientWidth;
         const height = document.getElementById("graph-container").clientHeight;
 
@@ -1178,12 +1158,33 @@
         });
 
         const g = svg.append("g");
-        svg.call(
-          d3
-            .zoom()
+        const zoom = d3.zoom()
             .scaleExtent([0.1, 4])
-            .on("zoom", (event) => g.attr("transform", event.transform)),
+            .on("zoom", (event) => g.attr("transform", event.transform));
+
+        svg.call(zoom);
+        svg.call(zoom.transform, d3.zoomIdentity); // Reset zoom to default
+
+        // Initialize positions if not already set (prevents (0,0) bunching)
+        nodes.forEach(n => {
+            if (n.x == null) n.x = width / 2 + (Math.random() - 0.5) * 100;
+            if (n.y == null) n.y = height / 2 + (Math.random() - 0.5) * 100;
+        });
+
+        // Helper functions moved inside for consistency with current 'links'
+        const getLinksForNode = (nodeId) => links.filter(l => 
+            (l.source.id || l.source) === nodeId || (l.target.id || l.target) === nodeId
         );
+        
+        const internalGetNodeRadius = (d) => {
+            const connectionCount = getLinksForNode(d.id).length;
+            const baseSize = 5 + Math.sqrt(connectionCount) * 3;
+            const complexityBonus = d.complexityScore ? (d.complexityScore / 100) * 8 : 0;
+            return Math.min(baseSize + complexityBonus, 28);
+        };
+
+        const internalIsHubNode = (d) => getLinksForNode(d.id).length >= 3;
+
 
         // ── STEP 1: BFS to assign depth to every node ─────────────────────
         (function assignDepths() {
@@ -1265,7 +1266,7 @@
         // Multi-foci: Arrange directory clusters in a circle to prevent overlap
         const centerX = width / 2;
         const centerY = height / 2;
-        const radius = Math.min(width, height) * 0.35; // The radius of the foci circle
+        const radius = Math.min(width, height) * 0.45; // Increased radius for better separation
 
         const fociMap = new Map();
         dirList.forEach((dir, i) => {
@@ -1295,20 +1296,25 @@
             d3
               .forceLink(links)
               .id((d) => d.id)
-              .distance(60) // Tighter links within clusters
-              .strength(0.1),
+              .distance(60)
+              .strength((l) => {
+                const srcDir = (l.source.id || l.source).split("/")[0];
+                const tgtDir = (l.target.id || l.target).split("/")[0];
+                // Significantly weaken cross-directory links to prevent overlap
+                return srcDir === tgtDir ? 0.25 : 0.01;
+              }),
           )
           // Push clusters apart and allow internal breathing room
-          .force("charge", d3.forceManyBody().strength(-350).distanceMax(600))
-          // Multi-foci: Pull each node toward its specific directory focus
-          .force("x", d3.forceX((d) => d._targetX).strength(0.18))
-          .force("y", d3.forceY((d) => d._targetY).strength(0.18))
+          .force("charge", d3.forceManyBody().strength(-450).distanceMax(500))
+          // Multi-foci: Pull each node toward its specific directory focus (Aggressive separation)
+          .force("x", d3.forceX((d) => d._targetX).strength(0.55))
+          .force("y", d3.forceY((d) => d._targetY).strength(0.55))
           // Hard collision to prevent node overlap within clusters
           .force(
             "collide",
             d3
               .forceCollide()
-              .radius((d) => getNodeRadius(d) + 16)
+              .radius((d) => internalGetNodeRadius(d) + 16)
               .strength(0.8),
           )
           .alphaDecay(0.015) // Slower decay for smoother transition to foci
@@ -1334,7 +1340,7 @@
         // 2. Distinct Node Shapes (Visual Hierarchy)
         nodeGroup.each(function (d) {
           const isRoot = d.depth === 0;
-          const r = getNodeRadius(d);
+          const r = internalGetNodeRadius(d);
           const el = d3.select(this);
 
           if (isRoot) {
@@ -1440,10 +1446,10 @@
 
         // Only show labels for hub nodes (3+ connections)
         nodeGroup
-          .filter((d) => isHubNode(d))
+          .filter((d) => internalIsHubNode(d))
           .append("text")
           .attr("class", "node-label hub-label")
-          .attr("dy", (d) => getNodeRadius(d) + 14)
+          .attr("dy", (d) => internalGetNodeRadius(d) + 14)
           .text((d) =>
             d.label.length > 15 ? d.label.substring(0, 12) + "..." : d.label,
           );
@@ -1512,12 +1518,12 @@
             );
             if (validNodes.length === 0) return;
 
-            const pad = 24; // Base padding
+            const pad = 15; // Reduced padding to minimize box overlap
 
-            let minX = d3.min(validNodes, (n) => n.x - getNodeRadius(n)) - pad;
-            let maxX = d3.max(validNodes, (n) => n.x + getNodeRadius(n)) + pad;
-            let minY = d3.min(validNodes, (n) => n.y - getNodeRadius(n)) - pad;
-            let maxY = d3.max(validNodes, (n) => n.y + getNodeRadius(n)) + pad;
+            let minX = d3.min(validNodes, (n) => n.x - internalGetNodeRadius(n)) - pad;
+            let maxX = d3.max(validNodes, (n) => n.x + internalGetNodeRadius(n)) + pad;
+            let minY = d3.min(validNodes, (n) => n.y - internalGetNodeRadius(n)) - pad;
+            let maxY = d3.max(validNodes, (n) => n.y + internalGetNodeRadius(n)) + pad;
 
             // Header height
             const headerHeight = 20;
