@@ -16,10 +16,20 @@ require("dotenv").config();
 
 const app = express();
 
-// Initialize Gemini 2.5 Flash API (used for other AI features, not health scan)
+// Initialize Gemini API (used for Feature 1 - file explanations)
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const PORT = process.env.PORT || 3000;
+
+// OpenRouter API Keys for parallel processing (Feature 3 speedup)
+const OPENROUTER_KEYS = [
+  process.env.OPENROUTER_KEY_1,
+  process.env.OPENROUTER_KEY_2,
+  process.env.OPENROUTER_KEY_3,
+].filter(Boolean);
+
+const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+const OPENROUTER_MODEL = "openai/gpt-oss-120b:free";
 
 // GitHub OAuth Configuration
 const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID || "";
@@ -213,6 +223,64 @@ function isOpenAIConfigured() {
  * @param {string} codeSnippet - Real code extracted by extractCodeSnippet()
  * @returns {Promise<{bobExplanation:string, proposed:string, confidence:number}|null>}
  */
+/**
+ * Generate fix using OpenRouter API with a specific API key
+ * Used for parallel processing with multiple keys
+ */
+async function generateFixWithOpenRouter(issue, codeSnippet, apiKey) {
+  if (!apiKey) return null;
+
+  try {
+    const prompt = buildPromptForIssue(issue, codeSnippet);
+    
+    const response = await fetch(`${OPENROUTER_BASE_URL}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+        "HTTP-Referer": "http://localhost:3000",
+        "X-Title": "CodeAtlas",
+      },
+      body: JSON.stringify({
+        model: OPENROUTER_MODEL,
+        messages: [
+          {
+            role: "system",
+            content: "You are Bob, an expert software architect AI. Respond with pure JSON only — no markdown fences, no backticks, no extra text.",
+          },
+          { role: "user", content: prompt },
+        ],
+        temperature: 0.3,
+        max_tokens: 1500,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error(`[${new Date().toISOString()}] OpenRouter API error: ${response.status} ${response.statusText}`);
+      return null;
+    }
+
+    const data = await response.json();
+    let raw = data.choices?.[0]?.message?.content?.trim();
+    if (!raw) return null;
+
+    // Strip markdown fences if the model wrapped the JSON anyway
+    raw = raw.replace(/^```(?:json)?\n?/i, "").replace(/\n?```$/i, "").trim();
+
+    const parsed = JSON.parse(raw);
+    if (!parsed.bobExplanation || !parsed.proposed) return null;
+
+    return {
+      bobExplanation: parsed.bobExplanation,
+      proposed: parsed.proposed,
+      confidence: typeof parsed.confidence === "number" ? parsed.confidence : 80,
+    };
+  } catch (err) {
+    console.error(`[${new Date().toISOString()}] OpenRouter fix failed (${issue.type}):`, err.message);
+    return null;
+  }
+}
+
 async function generateFixWithGPT(issue, codeSnippet) {
   if (!isOpenAIConfigured()) return null;
 
@@ -654,53 +722,116 @@ async function generateAllFixes(healthScanData, repoPath) {
     );
   }
 
-  // ── Step 4: Take up to 3 per group, call AI, fall back to templates ───────
-  const MAX_PER_CATEGORY = 3;
+  // ── Step 4: Take up to 2 per group, call AI in parallel, fall back to templates ───────
+  const MAX_PER_CATEGORY = 2;
   const fixes = [];
   let fixIndex = 0;
 
+  // Collect selected issues to process (up to 3 per category)
+  const selectedIssues = [];
   for (const type of TYPES) {
     const selected = grouped[type].slice(0, MAX_PER_CATEGORY);
+    selectedIssues.push(...selected);
+  }
 
-    for (const issue of selected) {
-      fixIndex++;
+  console.log(`[${new Date().toISOString()}] Processing ${selectedIssues.length} issues with ${OPENROUTER_KEYS.length > 0 ? 'parallel' : 'sequential'} AI generation...`);
 
-      // Real code from cache or disk
-      const original = extractCodeSnippet(issue.filePath, issue.line, repoPath);
+  // Process issues in parallel using multiple OpenRouter keys
+  if (OPENROUTER_KEYS.length > 0) {
+    // Parallel processing with multiple API keys
+    const batchSize = OPENROUTER_KEYS.length;
+    const batches = [];
+    
+    for (let i = 0; i < selectedIssues.length; i += batchSize) {
+      batches.push(selectedIssues.slice(i, i + batchSize));
+    }
 
-      // Try AI first
-      let bobExplanation, proposed;
-      const aiResult = await generateFixWithGPT(issue, original);
-
-      if (aiResult) {
-        bobExplanation = aiResult.bobExplanation;
-        proposed       = aiResult.proposed;
-        console.log(`[${new Date().toISOString()}] ✓ AI fix: ${issue.type} → ${issue.filePath}`);
-      } else {
-        // Template fallback
-        proposed       = buildProposedFix(issue.type, issue.symbol || "unknown", issue.filePath, original);
-        bobExplanation = buildBobExplanation(issue.type, issue.symbol || "unknown", issue.filePath, issue.severity);
-        console.log(`[${new Date().toISOString()}] ↩ Template fallback: ${issue.type} → ${issue.filePath}`);
-      }
-
-      fixes.push({
-        id:               `fix-${fixIndex}`,
-        file:             issue.filePath,
-        issueType:        issue.type,
-        severity:         issue.severity,
-        symbol:           issue.symbol || "unknown",
-        line:             issue.line || "-",
-        issueDescription: issue.description,
-        status:           "pending",
-        original,
-        proposed,
-        bobExplanation,
+    for (const batch of batches) {
+      const promises = batch.map((issue, index) => {
+        const currentFixIndex = ++fixIndex;
+        const original = extractCodeSnippet(issue.filePath, issue.line, repoPath);
+        const apiKey = OPENROUTER_KEYS[index % OPENROUTER_KEYS.length];
+        
+        return generateFixWithOpenRouter(issue, original, apiKey).then(aiResult => ({
+          issue,
+          original,
+          aiResult,
+          fixId: currentFixIndex,
+        }));
       });
+
+      const results = await Promise.all(promises);
+
+      for (const { issue, original, aiResult, fixId } of results) {
+        let bobExplanation, proposed;
+
+        if (aiResult) {
+          bobExplanation = aiResult.bobExplanation;
+          proposed = aiResult.proposed;
+          console.log(`[${new Date().toISOString()}] ✓ AI fix: ${issue.type} → ${issue.filePath}`);
+        } else {
+          // Template fallback
+          proposed = buildProposedFix(issue.type, issue.symbol || "unknown", issue.filePath, original);
+          bobExplanation = buildBobExplanation(issue.type, issue.symbol || "unknown", issue.filePath, issue.severity);
+          console.log(`[${new Date().toISOString()}] ↩ Template fallback: ${issue.type} → ${issue.filePath}`);
+        }
+
+        fixes.push({
+          id: `fix-${fixId}`,
+          file: issue.filePath,
+          issueType: issue.type,
+          severity: issue.severity,
+          symbol: issue.symbol || "unknown",
+          line: issue.line || "-",
+          issueDescription: issue.description,
+          status: "pending",
+          original,
+          proposed,
+          bobExplanation,
+        });
+      }
+    }
+  } else {
+    // Fallback to sequential processing if no OpenRouter keys
+    for (const type of TYPES) {
+      const selected = grouped[type].slice(0, MAX_PER_CATEGORY);
+
+      for (const issue of selected) {
+        fixIndex++;
+        const original = extractCodeSnippet(issue.filePath, issue.line, repoPath);
+        
+        let bobExplanation, proposed;
+        const aiResult = await generateFixWithGPT(issue, original);
+
+        if (aiResult) {
+          bobExplanation = aiResult.bobExplanation;
+          proposed = aiResult.proposed;
+          console.log(`[${new Date().toISOString()}] ✓ AI fix: ${issue.type} → ${issue.filePath}`);
+        } else {
+          proposed = buildProposedFix(issue.type, issue.symbol || "unknown", issue.filePath, original);
+          bobExplanation = buildBobExplanation(issue.type, issue.symbol || "unknown", issue.filePath, issue.severity);
+          console.log(`[${new Date().toISOString()}] ↩ Template fallback: ${issue.type} → ${issue.filePath}`);
+        }
+
+        fixes.push({
+          id: `fix-${fixIndex}`,
+          file: issue.filePath,
+          issueType: issue.type,
+          severity: issue.severity,
+          symbol: issue.symbol || "unknown",
+          line: issue.line || "-",
+          issueDescription: issue.description,
+          status: "pending",
+          original,
+          proposed,
+          bobExplanation,
+        });
+      }
     }
   }
 
   console.log(
-    `[${new Date().toISOString()}] Generated ${fixes.length} fixes — ` +
+    `[${new Date().toISOString()}] Generated ${fixes.length} fixes using ${OPENROUTER_KEYS.length > 0 ? 'parallel' : 'sequential'} processing — ` +
       TYPES.map((t) => `${t}: ${grouped[t].slice(0, MAX_PER_CATEGORY).length}`).join(", "),
   );
 
@@ -942,6 +1073,11 @@ app.post("/api/ingest", (req, res) => {
   if (!githubRegex.test(repoUrl))
     return res.status(400).json({ error: "Invalid GitHub repository URL" });
 
+  // Parse GitHub URL to extract owner and repo
+  const urlMatch = repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+  const owner = urlMatch[1];
+  const repo = urlMatch[2].replace(/\.git$/, "");
+
   const tmpBase = os.tmpdir() === "/" ? "/tmp" : os.tmpdir();
   const tmpDir = path.join(tmpBase, `repotour-${crypto.randomUUID()}`);
   fs.mkdirSync(tmpDir, { recursive: true });
@@ -1163,12 +1299,26 @@ app.post("/api/ingest", (req, res) => {
     console.log(
       `[${new Date().toISOString()}] Done: ${nodes.length} nodes, ${totalLinks} links`,
     );
-    res.json({ nodes, links, repoPath: tmpDir });
+    // Store repo info in session for Feature 4 (Apply + PR creation)
+    if (req.session) {
+      req.session.currentRepo = {
+        url: repoUrl,
+        path: tmpDir,
+        owner: owner,
+        repo: repo,
+        timestamp: Date.now(),
+      };
+    }
+
+    res.json({ nodes, links, repoPath: tmpDir, owner, repo });
     // NOTE: tmpDir is intentionally NOT deleted here.
     // The health-scan endpoint needs this directory to still exist on disk.
     // Cleanup happens when the server process exits or when a new ingest runs.
     console.log(
       `[${new Date().toISOString()}] tmpDir kept for health-scan: ${tmpDir}`,
+    );
+    console.log(
+      `[${new Date().toISOString()}] Stored repo info in session: ${owner}/${repo}`,
     );
   } catch (error) {
     // On failure the cloned directory is useless — delete it now.
@@ -1296,7 +1446,7 @@ app.post("/api/health-scan", async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 app.get("/api/fixes", async (req, res) => {
   try {
-    const { repoPath } = req.query;
+    const { repoPath, force } = req.query;
 
     // Validate repoPath
     if (!repoPath) {
@@ -1311,6 +1461,33 @@ app.get("/api/fixes", async (req, res) => {
       return res.status(404).json({
         error: "Repository path not found",
         message: `No directory exists at: ${repoPath}`,
+      });
+    }
+
+    // Check if we have cached fixes for this repo and force regeneration is not requested
+    if (fixesCache && fixesCache.length > 0 && force !== 'true') {
+      console.log(
+        `[${new Date().toISOString()}] GET /api/fixes — returning cached fixes (${fixesCache.length} fixes)`,
+      );
+      
+      return res.json({
+        fixes: fixesCache,
+        metadata: {
+          generatedAt: cacheTimestamp,
+          totalFixes: fixesCache.length,
+          byType: {
+            dead_code: fixesCache.filter((f) => f.issueType === "dead_code")
+              .length,
+            missing_test: fixesCache.filter(
+              (f) => f.issueType === "missing_test",
+            ).length,
+            doc_gap: fixesCache.filter((f) => f.issueType === "doc_gap").length,
+            circular_dep: fixesCache.filter((f) => f.issueType === "circular_dep").length,
+          },
+          repository: repoPath,
+          aiProvider: isOpenAIConfigured() ? "OpenAI GPT" : "Fallback Data",
+          cached: true,
+        },
       });
     }
 
@@ -1341,6 +1518,7 @@ app.get("/api/fixes", async (req, res) => {
         },
         repository: repoPath,
         aiProvider: isOpenAIConfigured() ? "OpenAI GPT" : "Fallback Data",
+        cached: false,
       },
     });
   } catch (error) {
@@ -1435,6 +1613,121 @@ app.post("/api/fixes/:id/decision", async (req, res) => {
 // Returns: array of audit entries
 // ─────────────────────────────────────────────────────────────────────────────
 app.get("/api/audit-log", (req, res) => {
+  // Seed audit log with mock history on first call (PoC only)
+  // In production, these entries would be created in real-time by Features 1-3
+  if (auditLog.length === 0) {
+    auditLog.push(
+      {
+        timestamp: "2026-05-15T09:01:04Z",
+        action: "ARCHITECT_ANALYSIS",
+        bobCapability: "Architect Mode",
+        file: "expressjs/express (full repo)",
+        symbol: null,
+        issueType: null,
+        commitMessage: null,
+        decision: "completed",
+        humanApproved: null,
+        note: "Bob read full repository. Generated architecture map and import/export graph.",
+      },
+      {
+        timestamp: "2026-05-15T09:01:31Z",
+        action: "HEALTH_SCAN",
+        bobCapability: "Agentic Workflows",
+        file: "expressjs/express (full repo)",
+        symbol: null,
+        issueType: "dead_code",
+        commitMessage: null,
+        decision: "completed",
+        humanApproved: null,
+        note: "Dead code scanner completed. 2 unused exports identified.",
+      },
+      {
+        timestamp: "2026-05-15T09:01:33Z",
+        action: "HEALTH_SCAN",
+        bobCapability: "Agentic Workflows",
+        file: "expressjs/express (full repo)",
+        symbol: null,
+        issueType: "missing_test",
+        commitMessage: null,
+        decision: "completed",
+        humanApproved: null,
+        note: "Test gap scanner completed. 2 untested critical functions identified.",
+      },
+      {
+        timestamp: "2026-05-15T09:01:35Z",
+        action: "HEALTH_SCAN",
+        bobCapability: "Agentic Workflows",
+        file: "expressjs/express (full repo)",
+        symbol: null,
+        issueType: "doc_gap",
+        commitMessage: null,
+        decision: "completed",
+        humanApproved: null,
+        note: "Doc gap scanner completed. 2 undocumented public functions identified.",
+      },
+      {
+        timestamp: "2026-05-15T09:02:10Z",
+        action: "FIX_GENERATED",
+        bobCapability: "Code Mode",
+        file: "lib/router.js",
+        symbol: "parseOldRoute",
+        issueType: "dead_code",
+        commitMessage: null,
+        decision: "generated",
+        humanApproved: null,
+        note: "Bob generated removal patch. Zero import references confirmed across repo.",
+      },
+      {
+        timestamp: "2026-05-15T09:02:12Z",
+        action: "FIX_GENERATED",
+        bobCapability: "Doc Generation",
+        file: "lib/router.js",
+        symbol: "init",
+        issueType: "doc_gap",
+        commitMessage: null,
+        decision: "generated",
+        humanApproved: null,
+        note: "JSDoc inferred from usage patterns in router/layer.js and application.js.",
+      },
+      {
+        timestamp: "2026-05-15T09:02:15Z",
+        action: "FIX_GENERATED",
+        bobCapability: "Test Generation",
+        file: "lib/application.js",
+        symbol: "lazyrouter",
+        issueType: "missing_test",
+        commitMessage: null,
+        decision: "generated",
+        humanApproved: null,
+        note: "Test written to match test/app.js style. Covers singleton-initialisation path.",
+      },
+      {
+        timestamp: "2026-05-15T09:02:18Z",
+        action: "FIX_GENERATED",
+        bobCapability: "Test Generation",
+        file: "lib/application.js",
+        symbol: "handle",
+        issueType: "missing_test",
+        commitMessage: null,
+        decision: "generated",
+        humanApproved: null,
+        note: "Two test cases generated using supertest (existing devDependency).",
+      },
+      {
+        timestamp: "2026-05-15T09:02:20Z",
+        action: "FIX_GENERATED",
+        bobCapability: "Doc Generation",
+        file: "lib/application.js",
+        symbol: "set",
+        issueType: "doc_gap",
+        commitMessage: null,
+        decision: "generated",
+        humanApproved: null,
+        note: "Dual getter/setter return type confirmed by tracing all call sites.",
+      }
+    );
+  }
+  
   res.json(auditLog);
 });
 
@@ -1443,7 +1736,7 @@ app.get("/api/audit-log", (req, res) => {
 // apply.html calls this when user clicks "Apply Approved Fixes"
 // Returns: { success, branchName, commits[], summary{} }
 // ─────────────────────────────────────────────────────────────────────────────
-app.post("/api/apply", (req, res) => {
+app.post("/api/apply", ensureAuthenticated, async (req, res) => {
   if (!fixesCache) {
     return res.status(400).json({
       error: "No fixes available. Call GET /api/fixes first.",
@@ -1459,83 +1752,412 @@ app.post("/api/apply", (req, res) => {
       error: "No approved fixes to apply. Approve at least one fix first.",
     });
 
+  // Get repo info from session
+  const repoInfo = req.session?.currentRepo;
+  if (!repoInfo) {
+    return res.status(400).json({
+      error: "No repository information found. Please analyze a repository first.",
+    });
+  }
+
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
   const branchName = `codeatlas/auto-fix-${timestamp}`;
 
-  const commits = approved.map((fix) => ({
-    file: fix.file,
-    commitMessage: `fix(${fix.issueType}): ${fix.bobExplanation.substring(0, 72)}`,
-    sha: crypto.randomBytes(4).toString("hex"),
-  }));
+  try {
+    // Initialize Octokit with user's access token
+    const octokit = new Octokit({
+      auth: req.user.accessToken,
+    });
 
-  // Log the branch creation
-  auditLog.push({
-    timestamp: new Date().toISOString(),
-    action: "COMMIT",
-    bobCapability: "Bob: Code Modernization",
-    note: `Branch '${branchName}' created — applying ${approved.length} approved fix(es)`,
-  });
+    console.log(`[${new Date().toISOString()}] Checking write access for ${repoInfo.owner}/${repoInfo.repo}`);
 
-  // Log each commit
-  commits.forEach((c) => {
+    // Check if user has write access to the repository
+    let targetOwner = repoInfo.owner;
+    let targetRepo = repoInfo.repo;
+    let hasWriteAccess = false;
+    let forkedFrom = null;
+
+    try {
+      const { data: repoData } = await octokit.repos.get({
+        owner: repoInfo.owner,
+        repo: repoInfo.repo,
+      });
+
+      // Check if user has push access
+      const { data: permData } = await octokit.repos.getCollaboratorPermissionLevel({
+        owner: repoInfo.owner,
+        repo: repoInfo.repo,
+        username: req.user.username,
+      });
+
+      hasWriteAccess = ['admin', 'write'].includes(permData.permission);
+      console.log(`[${new Date().toISOString()}] User ${req.user.username} has ${permData.permission} access`);
+    } catch (error) {
+      console.log(`[${new Date().toISOString()}] Cannot check permissions (likely no access): ${error.message}`);
+      hasWriteAccess = false;
+    }
+
+    // If no write access, fork the repository
+    if (!hasWriteAccess) {
+      console.log(`[${new Date().toISOString()}] No write access. Forking ${repoInfo.owner}/${repoInfo.repo}...`);
+      
+      try {
+        // Check if fork already exists
+        const { data: userRepos } = await octokit.repos.listForAuthenticatedUser({
+          per_page: 100,
+        });
+        
+        const existingFork = userRepos.find(
+          r => r.fork && r.parent &&
+          r.parent.owner.login === repoInfo.owner &&
+          r.parent.name === repoInfo.repo
+        );
+
+        if (existingFork) {
+          console.log(`[${new Date().toISOString()}] Fork already exists: ${existingFork.full_name}`);
+          targetOwner = existingFork.owner.login;
+          targetRepo = existingFork.name;
+          forkedFrom = `${repoInfo.owner}/${repoInfo.repo}`;
+        } else {
+          // Create fork
+          const { data: fork } = await octokit.repos.createFork({
+            owner: repoInfo.owner,
+            repo: repoInfo.repo,
+          });
+
+          console.log(`[${new Date().toISOString()}] Fork created: ${fork.full_name}`);
+          targetOwner = fork.owner.login;
+          targetRepo = fork.name;
+          forkedFrom = `${repoInfo.owner}/${repoInfo.repo}`;
+
+          // Wait for fork to be ready (GitHub takes a moment to set it up)
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        }
+
+        auditLog.push({
+          timestamp: new Date().toISOString(),
+          action: "FORK_CREATED",
+          bobCapability: "GitHub Integration",
+          note: `Forked ${repoInfo.owner}/${repoInfo.repo} to ${targetOwner}/${targetRepo}`,
+        });
+      } catch (forkError) {
+        console.error(`[${new Date().toISOString()}] Fork error:`, forkError.message);
+        return res.status(500).json({
+          error: "Failed to fork repository",
+          message: forkError.message,
+          details: "CodeAtlas needs to fork this repository to apply fixes. Make sure you have permission to create forks.",
+        });
+      }
+    }
+
+    // Get the default branch from the target repository (fork or original)
+    const { data: targetRepoData } = await octokit.repos.get({
+      owner: targetOwner,
+      repo: targetRepo,
+    });
+    const defaultBranch = targetRepoData.default_branch;
+
+    // Get the latest commit SHA from default branch
+    const { data: refData } = await octokit.git.getRef({
+      owner: targetOwner,
+      repo: targetRepo,
+      ref: `heads/${defaultBranch}`,
+    });
+    const latestCommitSha = refData.object.sha;
+
+    // Create new branch on the target repository
+    await octokit.git.createRef({
+      owner: targetOwner,
+      repo: targetRepo,
+      ref: `refs/heads/${branchName}`,
+      sha: latestCommitSha,
+    });
+
+    console.log(`[${new Date().toISOString()}] Branch created successfully: ${branchName} on ${targetOwner}/${targetRepo}`);
+
+    const commits = approved.map((fix) => ({
+      file: fix.file,
+      commitMessage: `fix(${fix.issueType}): ${fix.bobExplanation.substring(0, 72)}`,
+      sha: latestCommitSha,
+    }));
+
+    // Log the branch creation
     auditLog.push({
       timestamp: new Date().toISOString(),
       action: "COMMIT",
-      bobCapability: "Bob: BobShell CLI",
-      file: c.file,
-      note: `git commit -m "${c.commitMessage}"`,
+      bobCapability: "Bob: Code Modernization",
+      note: `Branch '${branchName}' created on ${targetOwner}/${targetRepo} — applying ${approved.length} approved fix(es)`,
     });
-  });
 
-  res.json({
-    success: true,
-    branchName,
-    commits,
-    summary: {
-      totalFound: fixesCache.length,
-      approved: approved.length,
-      rejected: rejected.length,
-      pending: pending.length,
-    },
-  });
+    // Log each commit
+    commits.forEach((c) => {
+      auditLog.push({
+        timestamp: new Date().toISOString(),
+        action: "COMMIT",
+        bobCapability: "Bob: BobShell CLI",
+        file: c.file,
+        note: `git commit -m "${c.commitMessage}"`,
+      });
+    });
+
+    // Log skipped fixes
+    rejected.forEach((fix) => {
+      auditLog.push({
+        timestamp: new Date().toISOString(),
+        action: "SKIPPED",
+        bobCapability: "Bob: Code Modernization",
+        file: fix.file,
+        symbol: fix.symbol,
+        issueType: fix.issueType,
+        note: "Fix rejected by user",
+        humanApproved: false,
+      });
+    });
+
+    // Store branch info for PR creation
+    req.session.lastApply = {
+      branchName,
+      commits,
+      timestamp: Date.now(),
+      baseSha: latestCommitSha,
+      defaultBranch,
+      targetOwner,  // The owner where branch was created (fork or original)
+      targetRepo,   // The repo where branch was created (fork or original)
+      originalOwner: repoInfo.owner,  // Original repo owner
+      originalRepo: repoInfo.repo,    // Original repo name
+      forkedFrom,   // null if direct access, or "owner/repo" if forked
+    };
+
+    res.json({
+      success: true,
+      branchName,
+      commits,
+      forked: forkedFrom !== null,
+      forkInfo: forkedFrom ? `Forked from ${forkedFrom}` : null,
+      targetRepo: `${targetOwner}/${targetRepo}`,
+      summary: {
+        totalFound: fixesCache.length,
+        approved: approved.length,
+        rejected: rejected.length,
+        pending: pending.length,
+      },
+    });
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] Error in apply:`, error.message);
+    
+    res.status(500).json({
+      error: "Failed to create branch",
+      message: error.message,
+      details: "Make sure you're authenticated and have the necessary permissions.",
+    });
+  }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// POST /api/create-pr (Legacy endpoint - kept for backward compatibility)
-// apply.html calls this after Apply — opens a PR URL in a new tab
+// POST /api/create-pr
+// apply.html calls this after Apply — creates real PR on GitHub
 // Returns: { success, prUrl, prNumber, title, body }
 // ─────────────────────────────────────────────────────────────────────────────
-app.post("/api/create-pr", (req, res) => {
+app.post("/api/create-pr", ensureAuthenticated, async (req, res) => {
   if (!fixesCache) {
     return res.status(400).json({
       error: "No fixes available.",
     });
   }
 
+  // Get repo info from session
+  const repoInfo = req.session?.currentRepo;
+  const lastApply = req.session?.lastApply;
+  
+  if (!repoInfo) {
+    return res.status(400).json({
+      error: "No repository information found. Please analyze a repository first.",
+    });
+  }
+
+  if (!lastApply) {
+    return res.status(400).json({
+      error: "No branch found. Please apply fixes first.",
+    });
+  }
+
   const approved = fixesCache.filter((f) => f.status === "approved");
 
-  const prNumber = Math.floor(Math.random() * 900) + 100;
-  const prUrl = `https://github.com/expressjs/express/pull/${prNumber}`;
+  try {
+    // Initialize Octokit with user's access token
+    const octokit = new Octokit({
+      auth: req.user.accessToken,
+    });
 
-  auditLog.push({
-    timestamp: new Date().toISOString(),
-    action: "PR_CREATED",
-    bobCapability: "Bob: Auditability",
-    note: `Pull request #${prNumber} opened with ${approved.length} fix(es) — audit log attached as PR comment`,
-  });
+    // Use target owner/repo from lastApply (could be fork or original)
+    const targetOwner = lastApply.targetOwner;
+    const targetRepo = lastApply.targetRepo;
+    const originalOwner = lastApply.originalOwner;
+    const originalRepo = lastApply.originalRepo;
 
-  res.json({
-    success: true,
-    prUrl,
-    prNumber,
-    title: `[CodeAtlas] Auto-fix: ${approved.length} issue(s) resolved`,
-    body:
-      `This PR was generated by CodeAtlas AI.\n\n**Fixes applied:** ${approved.length}\n` +
-      approved
-        .map((f) => `- \`${f.file}\`: ${f.issueType} (${f.severity})`)
-        .join("\n"),
-  });
+    console.log(`[${new Date().toISOString()}] Creating commits on ${targetOwner}/${targetRepo}`);
+
+    // Get the tree SHA of the base commit
+    const { data: baseCommit } = await octokit.git.getCommit({
+      owner: targetOwner,
+      repo: targetRepo,
+      commit_sha: lastApply.baseSha,
+    });
+    let currentTreeSha = baseCommit.tree.sha;
+    let currentCommitSha = lastApply.baseSha;
+
+    // Create commits for each approved fix
+    for (const fix of approved) {
+      // Create blob with the fixed code
+      const { data: blob } = await octokit.git.createBlob({
+        owner: targetOwner,
+        repo: targetRepo,
+        content: Buffer.from(fix.proposed).toString("base64"),
+        encoding: "base64",
+      });
+
+      // Create new tree with the updated file
+      const { data: newTree } = await octokit.git.createTree({
+        owner: targetOwner,
+        repo: targetRepo,
+        base_tree: currentTreeSha,
+        tree: [
+          {
+            path: fix.file,
+            mode: "100644",
+            type: "blob",
+            sha: blob.sha,
+          },
+        ],
+      });
+
+      // Create commit
+      const commitMessage = `fix(${fix.issueType}): ${fix.bobExplanation.substring(0, 72)}`;
+      const { data: newCommit } = await octokit.git.createCommit({
+        owner: targetOwner,
+        repo: targetRepo,
+        message: commitMessage,
+        tree: newTree.sha,
+        parents: [currentCommitSha],
+      });
+
+      currentTreeSha = newTree.sha;
+      currentCommitSha = newCommit.sha;
+
+      console.log(`[${new Date().toISOString()}] Created commit: ${commitMessage}`);
+    }
+
+    // Update the branch reference to point to the latest commit
+    await octokit.git.updateRef({
+      owner: targetOwner,
+      repo: targetRepo,
+      ref: `heads/${lastApply.branchName}`,
+      sha: currentCommitSha,
+    });
+
+    console.log(`[${new Date().toISOString()}] Updated branch ${lastApply.branchName} with ${approved.length} commits`);
+
+    // Create PR body with audit log
+    const prBody = `## 🤖 CodeAtlas Auto-Fix
+
+This pull request was automatically generated by CodeAtlas AI.
+
+### 📊 Summary
+- **Issues Found:** ${fixesCache.length}
+- **Fixes Applied:** ${approved.length}
+- **Rejected:** ${fixesCache.filter(f => f.status === "rejected").length}
+- **Pending:** ${fixesCache.filter(f => f.status === "pending").length}
+
+### 🔧 Changes
+${approved.map((f) => `- \`${f.file}\`: ${f.issueType} (${f.severity})`).join("\n")}
+
+### 📝 Audit Trail
+${auditLog.slice(-10).map(entry =>
+  `- **${entry.action}** (${entry.bobCapability}): ${entry.note || entry.file || ''}`
+).join("\n")}
+
+---
+*Generated by [CodeAtlas](https://github.com/your-org/codeatlas) - AI-Powered Codebase Health Scanner*`;
+
+    // Determine PR head (branch reference)
+    // If forked: use "username:branch", if direct: use "branch"
+    const prHead = lastApply.forkedFrom
+      ? `${targetOwner}:${lastApply.branchName}`
+      : lastApply.branchName;
+
+    // Create the pull request on the ORIGINAL repository
+    const { data: pullRequest } = await octokit.pulls.create({
+      owner: originalOwner,
+      repo: originalRepo,
+      title: `[CodeAtlas] Auto-fix: ${approved.length} issue(s) resolved`,
+      head: prHead,
+      base: lastApply.defaultBranch,
+      body: prBody,
+    });
+
+    console.log(`[${new Date().toISOString()}] PR created: ${pullRequest.html_url}`);
+
+    auditLog.push({
+      timestamp: new Date().toISOString(),
+      action: "PR_CREATED",
+      bobCapability: "Bob: Auditability",
+      note: `Pull request #${pullRequest.number} opened for ${originalOwner}/${originalRepo} with ${approved.length} fix(es) — audit log attached as PR comment`,
+    });
+
+    res.json({
+      success: true,
+      prUrl: pullRequest.html_url,
+      prNumber: pullRequest.number,
+      title: pullRequest.title,
+      body: prBody,
+      forked: lastApply.forkedFrom !== null,
+    });
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] Error creating PR:`, error.message);
+    
+    // Return error with helpful message
+    res.status(500).json({
+      error: "Failed to create pull request on GitHub",
+      message: error.message,
+      details: "Make sure the branch was created successfully and you have permission to create pull requests.",
+    });
+  }
 });
+
+// TODO: replace with real GitHub API call
+// SIMULATED VERSION (for PoC without authentication):
+// app.post("/api/create-pr", async (req, res) => {
+//   if (!fixesCache) {
+//     return res.status(400).json({ error: "No fixes available." });
+//   }
+//   const repoInfo = req.session?.currentRepo;
+//   const lastApply = req.session?.lastApply;
+//   if (!repoInfo) {
+//     return res.status(400).json({ error: "No repository information found. Please analyze a repository first." });
+//   }
+//   if (!lastApply) {
+//     return res.status(400).json({ error: "No branch found. Please apply fixes first." });
+//   }
+//   const approved = fixesCache.filter((f) => f.status === "approved");
+//   console.log(`[${new Date().toISOString()}] SIMULATED: Creating PR for ${repoInfo.owner}/${repoInfo.repo}`);
+//   const prBody = `## 🤖 CodeAtlas Auto-Fix\n\nThis pull request was automatically generated by CodeAtlas AI.\n\n### 📊 Summary\n- **Issues Found:** ${fixesCache.length}\n- **Fixes Applied:** ${approved.length}\n- **Rejected:** ${fixesCache.filter(f => f.status === "rejected").length}\n- **Pending:** ${fixesCache.filter(f => f.status === "pending").length}\n\n### 🔧 Changes\n${approved.map((f) => `- \`${f.file}\`: ${f.issueType} (${f.severity})`).join("\n")}\n\n### 📝 Audit Trail\n${auditLog.slice(-10).map(entry => `- **${entry.action}** (${entry.bobCapability}): ${entry.note || entry.file || ''}`).join("\n")}\n\n---\n*Generated by [CodeAtlas](https://github.com/your-org/codeatlas) - AI-Powered Codebase Health Scanner*`;
+//   const fakePrNumber = Math.floor(Math.random() * 1000) + 100;
+//   const prUrl = `https://github.com/${repoInfo.owner}/${repoInfo.repo}/pull/${fakePrNumber}`;
+//   console.log(`[${new Date().toISOString()}] SIMULATED: PR created: ${prUrl}`);
+//   auditLog.push({
+//     timestamp: new Date().toISOString(),
+//     action: "PR_CREATED",
+//     bobCapability: "Bob: Auditability",
+//     note: `Pull request #${fakePrNumber} opened for ${repoInfo.owner}/${repoInfo.repo} with ${approved.length} fix(es) — audit log attached as PR comment`,
+//   });
+//   res.json({
+//     success: true,
+//     prUrl: prUrl,
+//     prNumber: fakePrNumber,
+//     title: `[CodeAtlas] Auto-fix: ${approved.length} issue(s) resolved`,
+//     body: prBody,
+//   });
+// });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/file-summary  (Gemini — file explanation for intelligence panel)
@@ -1574,12 +2196,15 @@ File: ${filePath}
 Content:
 ${fileContent.substring(0, 8000)}`;
 
-    const result = await genAI.models.generateContent({
-      model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
-      contents: prompt,
+    const model = genAI.getGenerativeModel({
+      model: process.env.GEMINI_MODEL || "gemini-2.0-flash-exp"
     });
+    
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
 
-    const cleaned = (result.text || "")
+    const cleaned = (text || "")
       .replace(/```json\n?/g, "")
       .replace(/```\n?/g, "")
       .trim();
@@ -1642,12 +2267,15 @@ app.post("/api/analyze-file", async (req, res) => {
       "'complexityReason' (1-sentence explanation of why it might be complex).\n\n" +
       `File: ${filePath}\n\nContent:\n${rawContent.substring(0, 12000)}`;
 
-    const result = await genAI.models.generateContent({
-      model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
-      contents: prompt,
+    const model = genAI.getGenerativeModel({
+      model: process.env.GEMINI_MODEL || "gemini-2.0-flash-exp"
     });
+    
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
 
-    const cleaned = (result.text || "")
+    const cleaned = (text || "")
       .replace(/^```(?:json)?\s*/i, "")
       .replace(/\s*```$/i, "")
       .trim();
@@ -1727,13 +2355,15 @@ app.post("/api/blast-refactor", async (req, res) => {
       "No markdown. No explanation. JSON only.\n\n" +
       `Target: ${targetFile}\nDependents: ${dependentFiles.join(", ")}\nInstruction: ${instruction}\n\n${combinedContent}`;
 
-    const result = await genAI.models.generateContent({
-      model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
-      contents: prompt,
-      config: { temperature: 0.2 },
+    const model = genAI.getGenerativeModel({
+      model: process.env.GEMINI_MODEL || "gemini-2.0-flash-exp"
     });
+    
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
 
-    const cleaned = (result.text || "")
+    const cleaned = (text || "")
       .replace(/^```(?:json)?\s*/i, "")
       .replace(/\s*```$/i, "")
       .trim();
