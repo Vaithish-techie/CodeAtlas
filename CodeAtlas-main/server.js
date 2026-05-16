@@ -278,6 +278,11 @@ app.get("/api/health-scan", (req, res) => {
 // In-memory store for fixes (seeded with mock data on first call)
 let fixStore = null;
 
+// Feature 4: Apply + Audit Trail + Branch Creation
+// In-memory stores for apply results and audit log
+const auditLog = [];
+const applyResult = { ran: false, branchName: null, commits: [], summary: {} };
+
 app.get("/api/fixes", (req, res) => {
   // Initialize fixStore with mock data on first call
   if (!fixStore) {
@@ -382,6 +387,247 @@ app.post("/api/fixes/:id/decision", (req, res) => {
   }
 
   res.json(fix);
+});
+
+// Feature 4: Apply + Audit Trail + Branch Creation Routes
+
+// ROUTE 1: POST /api/apply
+// Applies approved fixes to a simulated Git branch
+app.post("/api/apply", (req, res) => {
+  // Filter approved fixes
+  const approvedFixes = Object.values(fixStore || {}).filter(
+    (fix) => fix.status === "approved"
+  );
+
+  if (approvedFixes.length === 0) {
+    return res.status(400).json({ error: "No approved fixes to apply." });
+  }
+
+  // Generate branch name
+  const date = new Date().toISOString().slice(0, 10);
+  const branchName = `reporevive/fixes-${date}`;
+  applyResult.branchName = branchName;
+
+  // Clear previous commits
+  applyResult.commits = [];
+
+  // Process each approved fix
+  approvedFixes.forEach((fix) => {
+    const commitMessage = `fix(${fix.file}): ${fix.issueType} — ${fix.symbol} [Bob-assisted]`;
+    
+    // Add to audit log
+    auditLog.push({
+      timestamp: new Date().toISOString(),
+      action: "COMMIT",
+      bobCapability: "Code Mode",
+      file: fix.file,
+      symbol: fix.symbol,
+      issueType: fix.issueType,
+      commitMessage: commitMessage,
+      decision: "approved",
+      humanApproved: true,
+    });
+
+    // Add to commits array
+    applyResult.commits.push({
+      timestamp: new Date().toISOString(),
+      action: "COMMIT",
+      bobCapability: "Code Mode",
+      file: fix.file,
+      symbol: fix.symbol,
+      issueType: fix.issueType,
+      commitMessage: commitMessage,
+      decision: "approved",
+      humanApproved: true,
+    });
+  });
+
+  // Process rejected fixes
+  const rejectedFixes = Object.values(fixStore || {}).filter(
+    (fix) => fix.status === "rejected"
+  );
+
+  rejectedFixes.forEach((fix) => {
+    auditLog.push({
+      timestamp: new Date().toISOString(),
+      action: "SKIPPED",
+      bobCapability: "Code Mode",
+      file: fix.file,
+      symbol: fix.symbol,
+      issueType: fix.issueType,
+      commitMessage: null,
+      decision: "rejected",
+      humanApproved: false,
+    });
+  });
+
+  // Build summary
+  const allFixes = Object.values(fixStore || {});
+  const pendingCount = allFixes.filter((f) => f.status === "pending").length;
+  
+  applyResult.summary = {
+    totalFound: allFixes.length,
+    approved: approvedFixes.length,
+    rejected: rejectedFixes.length,
+    pending: pendingCount,
+    branchName: branchName,
+    prUrl: `https://github.com/expressjs/express/compare/${branchName}?expand=1&title=RepoRevive+Auto+Fixes&body=Generated+by+RepoRevive+%2B+IBM+Bob`,
+  };
+
+  applyResult.ran = true;
+
+  res.json(applyResult);
+});
+
+// ROUTE 2: GET /api/audit-log
+// Returns the full audit log with seeded history
+app.get("/api/audit-log", (req, res) => {
+  // Seed audit log with mock history on first call
+  if (auditLog.length === 0) {
+    const seedData = [
+      {
+        timestamp: "2026-05-15T09:01:04Z",
+        action: "ARCHITECT_ANALYSIS",
+        bobCapability: "Architect Mode",
+        file: "expressjs/express (full repo)",
+        symbol: null,
+        issueType: null,
+        commitMessage: null,
+        decision: "completed",
+        humanApproved: null,
+        note: "Bob read full repository. Generated architecture map and import/export graph.",
+      },
+      {
+        timestamp: "2026-05-15T09:01:31Z",
+        action: "HEALTH_SCAN",
+        bobCapability: "Agentic Workflows",
+        file: "expressjs/express (full repo)",
+        symbol: null,
+        issueType: "dead_code",
+        commitMessage: null,
+        decision: "completed",
+        humanApproved: null,
+        note: "Dead code scanner completed. 2 unused exports identified.",
+      },
+      {
+        timestamp: "2026-05-15T09:01:33Z",
+        action: "HEALTH_SCAN",
+        bobCapability: "Agentic Workflows",
+        file: "expressjs/express (full repo)",
+        symbol: null,
+        issueType: "missing_test",
+        commitMessage: null,
+        decision: "completed",
+        humanApproved: null,
+        note: "Test gap scanner completed. 2 untested critical functions identified.",
+      },
+      {
+        timestamp: "2026-05-15T09:01:35Z",
+        action: "HEALTH_SCAN",
+        bobCapability: "Agentic Workflows",
+        file: "expressjs/express (full repo)",
+        symbol: null,
+        issueType: "doc_gap",
+        commitMessage: null,
+        decision: "completed",
+        humanApproved: null,
+        note: "Doc gap scanner completed. 2 undocumented public functions identified.",
+      },
+      {
+        timestamp: "2026-05-15T09:02:10Z",
+        action: "FIX_GENERATED",
+        bobCapability: "Code Mode",
+        file: "lib/router.js",
+        symbol: "parseOldRoute",
+        issueType: "dead_code",
+        commitMessage: null,
+        decision: "generated",
+        humanApproved: null,
+        note: "Bob generated removal patch. Zero import references confirmed across repo.",
+      },
+      {
+        timestamp: "2026-05-15T09:02:12Z",
+        action: "FIX_GENERATED",
+        bobCapability: "Doc Generation",
+        file: "lib/router.js",
+        symbol: "init",
+        issueType: "doc_gap",
+        commitMessage: null,
+        decision: "generated",
+        humanApproved: null,
+        note: "JSDoc inferred from usage patterns in router/layer.js and application.js.",
+      },
+      {
+        timestamp: "2026-05-15T09:02:15Z",
+        action: "FIX_GENERATED",
+        bobCapability: "Test Generation",
+        file: "lib/application.js",
+        symbol: "lazyrouter",
+        issueType: "missing_test",
+        commitMessage: null,
+        decision: "generated",
+        humanApproved: null,
+        note: "Test written to match test/app.js style. Covers singleton-initialisation path.",
+      },
+      {
+        timestamp: "2026-05-15T09:02:18Z",
+        action: "FIX_GENERATED",
+        bobCapability: "Test Generation",
+        file: "lib/application.js",
+        symbol: "handle",
+        issueType: "missing_test",
+        commitMessage: null,
+        decision: "generated",
+        humanApproved: null,
+        note: "Two test cases generated using supertest (existing devDependency).",
+      },
+      {
+        timestamp: "2026-05-15T09:02:20Z",
+        action: "FIX_GENERATED",
+        bobCapability: "Doc Generation",
+        file: "lib/application.js",
+        symbol: "set",
+        issueType: "doc_gap",
+        commitMessage: null,
+        decision: "generated",
+        humanApproved: null,
+        note: "Dual getter/setter return type confirmed by tracing all call sites.",
+      },
+    ];
+
+    auditLog.push(...seedData);
+  }
+
+  res.json(auditLog);
+});
+
+// ROUTE 3: POST /api/create-pr
+// Simulates PR creation and logs the action
+app.post("/api/create-pr", (req, res) => {
+  if (!applyResult.ran) {
+    return res.status(400).json({ error: "Apply fixes first before creating a PR." });
+  }
+
+  // Add PR creation entry to audit log
+  auditLog.push({
+    timestamp: new Date().toISOString(),
+    action: "PR_CREATED",
+    bobCapability: "BobShell",
+    file: null,
+    symbol: null,
+    issueType: null,
+    commitMessage: null,
+    decision: "completed",
+    humanApproved: true,
+    note: "Pull request created. Audit log attached as PR comment.",
+  });
+
+  res.json({
+    prUrl: applyResult.summary.prUrl,
+    branchName: applyResult.branchName,
+    message: "Pull request opened successfully.",
+    auditEntries: auditLog.length,
+  });
 });
 
 
