@@ -40,12 +40,12 @@ Server running on http://localhost:3000
 ## What Changed
 
 ### Before (Old Code - Still Running)
-- Used `@openrouter/sdk` package ❌
+- Used the old `@openrouter/sdk` integration path for this health scan flow ❌
 - Had `openrouter.chat.completions.create()` error ❌
 - Returned hardcoded data instantly (3ms) ❌
 
 ### After (New Code - Needs Restart)
-- Uses `openai` package with OpenRouter base URL ✅
+- This health scan flow now uses the `openai` package with the OpenRouter base URL ✅
 - Proper API integration ✅
 - Real AI analysis (30-60 seconds) ✅
 - Loading indicator with timer ✅
