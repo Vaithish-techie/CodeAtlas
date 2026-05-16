@@ -138,7 +138,664 @@ function ensureAuthenticated(req, res, next) {
 let cachedRepoFiles = null;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// In-memory state (resets on server restart — fine for hackathon demo)
+// FEATURE 3: OpenAI GPT Integration for Auto-Fix Queue
+// ─────────────────────────────────────────────────────────────────────────────
+
+// OpenAI Configuration
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "dummy";
+const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
+const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
+const OPENAI_ENDPOINT = `${OPENAI_BASE_URL}/chat/completions`;
+
+// In-memory cache for GPT-generated fixes (persists per server session)
+let fixesCache = null;
+let cacheTimestamp = null;
+
+// Health scan issues to generate fixes for
+const HEALTH_ISSUES = [
+  {
+    file: "lib/router.js",
+    type: "dead_code",
+    severity: "high",
+    description:
+      "Function 'parseOldRoute()' is exported but never used internally.",
+    line: 145,
+    symbol: "parseOldRoute",
+  },
+  {
+    file: "lib/router.js",
+    type: "doc_gap",
+    severity: "low",
+    description: "Public function 'init()' is missing JSDoc documentation.",
+    line: 23,
+    symbol: "init",
+  },
+  {
+    file: "lib/application.js",
+    type: "missing_test",
+    severity: "medium",
+    description: "Function 'lazyrouter()' has no corresponding test case.",
+    line: 89,
+    symbol: "lazyrouter",
+  },
+  {
+    file: "lib/application.js",
+    type: "missing_test",
+    severity: "high",
+    description: "Critical function 'handle()' lacks test coverage.",
+    line: 156,
+    symbol: "handle",
+  },
+  {
+    file: "lib/application.js",
+    type: "doc_gap",
+    severity: "medium",
+    description: "Public method 'set()' is missing parameter documentation.",
+    line: 234,
+    symbol: "set",
+  },
+];
+
+/**
+ * Check if OpenAI API is properly configured
+ */
+function isOpenAIConfigured() {
+  return OPENAI_API_KEY && OPENAI_API_KEY !== "dummy" && OPENAI_API_KEY.length > 0;
+}
+
+/**
+ * Call the AI API to generate a fix for one issue.
+ * Passes the real extracted code snippet so the model reasons about actual code.
+ * Returns { bobExplanation, proposed, confidence } or null on any failure.
+ * Null signals the caller to use the template fallback — never throws.
+ *
+ * @param {Object} issue       - Issue metadata from the scanner
+ * @param {string} codeSnippet - Real code extracted by extractCodeSnippet()
+ * @returns {Promise<{bobExplanation:string, proposed:string, confidence:number}|null>}
+ */
+async function generateFixWithGPT(issue, codeSnippet) {
+  if (!isOpenAIConfigured()) return null;
+
+  try {
+    const prompt = buildPromptForIssue(issue, codeSnippet);
+    console.log(`[${new Date().toISOString()}] AI fix: ${issue.type} → ${issue.filePath || issue.file}`);
+
+    const response = await fetch(OPENAI_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: OPENAI_MODEL,
+        messages: [
+          {
+            role: "system",
+            content: "You are Bob, an expert software architect AI. Respond with pure JSON only — no markdown fences, no backticks, no extra text.",
+          },
+          { role: "user", content: prompt },
+        ],
+        temperature: 0.3,
+        max_tokens: 1500,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error(`[${new Date().toISOString()}] AI API error: ${response.status} ${response.statusText}`);
+      return null;
+    }
+
+    const data = await response.json();
+    let raw = data.choices?.[0]?.message?.content?.trim();
+    if (!raw) return null;
+
+    // Strip markdown fences if the model wrapped the JSON anyway
+    raw = raw.replace(/^```(?:json)?\n?/i, "").replace(/\n?```$/i, "").trim();
+
+    const parsed = JSON.parse(raw);
+    if (!parsed.bobExplanation || !parsed.proposed) return null;
+
+    return {
+      bobExplanation: parsed.bobExplanation,
+      proposed: parsed.proposed,
+      confidence: typeof parsed.confidence === "number" ? parsed.confidence : 80,
+    };
+  } catch (err) {
+    console.error(`[${new Date().toISOString()}] AI fix failed (${issue.type}):`, err.message);
+    return null;
+  }
+}
+
+/**
+ * Build a code-aware prompt for the AI.
+ * Embeds the actual extracted source code so the model reasons about real code,
+ * not just metadata.
+ *
+ * @param {Object} issue       - Issue metadata
+ * @param {string} codeSnippet - Real code from extractCodeSnippet()
+ * @returns {string}
+ */
+function buildPromptForIssue(issue, codeSnippet) {
+  const filePath = issue.filePath || issue.file;
+  const symbol   = issue.symbol || "unknown";
+
+  // Cap snippet to avoid token overruns on very large files
+  const cappedCode = codeSnippet.split("\n").slice(0, 60).join("\n");
+
+  const JSON_FORMAT = `Respond with ONLY this JSON (no markdown, no backticks, no extra text):
+{
+  "bobExplanation": "2-3 sentences specific to this file and its actual code",
+  "proposed": "the actual fix as runnable code, not prose",
+  "confidence": 80
+}`;
+
+  switch (issue.type) {
+    case "dead_code":
+      return `You are Bob, a senior software architect AI reviewing a JS/TS codebase.
+
+The static analyser flagged \`${filePath}\` as an ORPHAN FILE — nothing imports it.
+
+ACTUAL FILE CONTENT:
+${cappedCode}
+
+IMPORTANT: Orphaned ≠ always dead. Read the code and decide:
+- SCENARIO A: Truly unused legacy/experimental code → propose removing/commenting it out.
+- SCENARIO B: Useful code that is simply missing an import → propose the import statement that should be added to the correct consumer file.
+
+${JSON_FORMAT}`;
+
+
+    case "missing_test":
+      return `You are Bob, a senior software architect AI.
+
+\`${symbol}\` in \`${filePath}\` has no test coverage.
+
+ACTUAL SOURCE CODE:
+${cappedCode}
+
+Write a complete, runnable Jest test suite based on what this code ACTUALLY DOES.
+Do NOT use placeholder comments. Write real test cases covering happy path, edge cases, and error paths visible in the code.
+
+${JSON_FORMAT}`;
+
+    case "doc_gap":
+      return `You are Bob, a senior software architect AI.
+
+\`${symbol}\` exported from \`${filePath}\` has no JSDoc.
+
+ACTUAL CODE:
+${cappedCode}
+
+Write an accurate JSDoc block for this symbol based on what it actually does.
+Return the JSDoc block placed immediately above the original code — both together as the proposed value.
+
+${JSON_FORMAT}`;
+
+    case "circular_dep":
+      return `You are Bob, a senior software architect AI.
+
+Circular import chain detected: ${symbol}
+
+Starting file \`${filePath}\` content:
+${cappedCode}
+
+Suggest a concrete refactor to break this cycle (extract shared module, dependency injection, or restructure exports). Show actual code in the proposed field.
+
+${JSON_FORMAT}`;
+
+    default:
+      return `You are Bob, a senior software architect AI.
+File: ${filePath}, Issue: ${issue.type} (${issue.severity})
+
+CODE:
+${cappedCode}
+
+Analyse and provide a fix.
+
+${JSON_FORMAT}`;
+  }
+}
+
+
+/**
+ * Get fallback fix data when OpenAI is not available
+ */
+function getFallbackFix(issue) {
+  const fallbacks = {
+    dead_code: {
+      bobExplanation:
+        "Bob detected that this function is exported but has zero internal callers across the entire codebase. Dead exports inflate bundle size and mislead future developers into thinking this API surface is supported.",
+      original: `// ${issue.symbol} — legacy compatibility shim\nfunction ${issue.symbol}(route) {\n  return route.replace(/^\\//, '').split('/');\n}\nmodule.exports.${issue.symbol} = ${issue.symbol};`,
+      proposed: `// ${issue.symbol}() removed by CodeAtlas AI\n// Reason: zero internal callers detected across scanned files.\n// If external consumers depend on this export, add it back with a deprecation warning.`,
+      confidence: 85,
+    },
+    missing_test: {
+      bobExplanation:
+        "Bob found that this function has critical logic but no test coverage. If this silently breaks, it could cause cascading failures with no clear error message.",
+      original: `app.${issue.symbol} = function ${issue.symbol}() {\n  // Function implementation\n  if (!this._router) {\n    this._router = new Router();\n  }\n};`,
+      proposed: `describe('${issue.symbol}', () => {\n  it('should initialize on first call', () => {\n    const app = express();\n    expect(app._router).toBeUndefined();\n    app.${issue.symbol}();\n    expect(app._router).toBeDefined();\n  });\n\n  it('should not reinitialize on subsequent calls', () => {\n    const app = express();\n    app.${issue.symbol}();\n    const router = app._router;\n    app.${issue.symbol}();\n    expect(app._router).toBe(router);\n  });\n});`,
+      confidence: 88,
+    },
+    doc_gap: {
+      bobExplanation:
+        "Bob found that this is a public function with no JSDoc. Any developer using an IDE with IntelliSense will get zero autocomplete help on its parameters or return value — a friction point during onboarding.",
+      original: `function ${issue.symbol}(app) {\n  return function expressInit(req, res, next) {\n    if (app.enabled('x-powered-by')) res.setHeader('X-Powered-By', 'Express');\n    req.res = res;\n    res.req = req;\n    next();\n  };\n}`,
+      proposed: `/**\n * Initializes per-request Express metadata and optional X-Powered-By header.\n * @param {Object} app - The Express application instance.\n * @returns {Function} Express middleware function (req, res, next).\n */\nfunction ${issue.symbol}(app) {\n  return function expressInit(req, res, next) {\n    if (app.enabled('x-powered-by')) res.setHeader('X-Powered-By', 'Express');\n    req.res = res;\n    res.req = req;\n    next();\n  };\n}`,
+      confidence: 95,
+    },
+  };
+
+  return (
+    fallbacks[issue.type] || {
+      bobExplanation: "Fix generation unavailable. OpenAI API key not configured.",
+      original: `// Original code for ${issue.symbol}`,
+      proposed: `// Proposed fix for ${issue.symbol}`,
+      confidence: 50,
+    }
+  );
+}
+
+/**
+ * Extract a code snippet for a given file path and line number.
+ * Tries the in-memory cachedRepoFiles first, then falls back to reading
+ * directly from disk using repoPath (handles server-restart cache loss).
+ *
+ * @param {string} filePath   - Repo-relative path
+ * @param {number|string} lineNumber - 1-based line number, or "-" / null
+ * @param {string} [repoPath] - Absolute path to cloned repo root (disk fallback)
+ * @returns {string}
+ */
+function extractCodeSnippet(filePath, lineNumber, repoPath) {
+  // ── 1. Try in-memory cache ─────────────────────────────────────────────────
+  let fileContent = null;
+
+  if (cachedRepoFiles && Array.isArray(cachedRepoFiles.files)) {
+    const cached = cachedRepoFiles.files.find((f) => f.path === filePath);
+    if (cached) fileContent = cached.content;
+  }
+
+  // ── 2. Disk fallback (cache miss after server restart) ────────────────────
+  if (!fileContent && repoPath) {
+    try {
+      fileContent = fs.readFileSync(path.join(repoPath, filePath), "utf-8");
+    } catch (_) {
+      // file unreadable — handled below
+    }
+  }
+
+  if (!fileContent) {
+    return `// Source unavailable for: ${filePath}\n// Re-analyse the repository to populate the code cache.`;
+  }
+
+  const lines = fileContent.split("\n");
+
+  // No line number reported → show first 20 lines as a file preview
+  if (!lineNumber || lineNumber === "-" || lineNumber === null) {
+    const preview = lines.slice(0, 20).join("\n");
+    return `// (No specific line — showing first 20 lines of ${filePath})\n${preview}`;
+  }
+
+  const idx   = Math.max(0, Number(lineNumber) - 1);
+  const start = Math.max(0, idx - 5);
+  const end   = Math.min(lines.length, idx + 6);
+  const lineLabel = `// ${filePath}  (lines ${start + 1}–${end})`;
+  return `${lineLabel}\n${lines.slice(start, end).join("\n")}`;
+}
+
+/**
+ * Build a meaningful `proposed` string for a fix based on issue type and the
+ * extracted original code snippet. No external API calls — pure string logic.
+ *
+ * @param {string} issueType - "dead_code" | "circular_dep" | "missing_test" | "doc_gap"
+ * @param {string} symbol    - The reported symbol name (e.g. "parseOldRoute")
+ * @param {string} filePath  - Repo-relative file path
+ * @param {string} original  - The extracted code snippet from extractCodeSnippet()
+ * @returns {string}
+ */
+function buildProposedFix(issueType, symbol, filePath, original) {
+  // Strip the leading comment line that extractCodeSnippet prepends
+  const codeOnly = original
+    .split("\n")
+    .filter((l) => !l.startsWith("// ") || l.startsWith("// TODO") || l.startsWith("// NOTE"))
+    .join("\n")
+    .trim();
+
+  switch (issueType) {
+    case "dead_code": {
+      // Comment out every line of the dead code block with a removal note
+      const commented = codeOnly
+        .split("\n")
+        .map((l) => `// ${l}`)
+        .join("\n");
+      return (
+        `// ─── REMOVED BY CodeAtlas ───────────────────────────────────────\n` +
+        `// Symbol '${symbol}' has no callers — safe to delete.\n` +
+        `// Original code preserved below for reference:\n` +
+        `//\n` +
+        `${commented}\n` +
+        `// ─────────────────────────────────────────────────────────────────`
+      );
+    }
+
+    case "circular_dep": {
+      // For circular deps the symbol field contains the full chain string
+      const chain = symbol; // e.g. "a.js → b.js → a.js"
+      return (
+        `// ─── CIRCULAR DEPENDENCY DETECTED ───────────────────────────────\n` +
+        `// Chain: ${chain}\n` +
+        `//\n` +
+        `// Suggested fix: introduce a shared module for the common logic\n` +
+        `// and have both ends import from it instead of from each other.\n` +
+        `//\n` +
+        `// Example refactor:\n` +
+        `//   shared/${symbol.split(" → ")[0].replace(/\//g, "-").replace(/\.[jt]sx?$/, "")}-shared.js\n` +
+        `//     └─ export the shared function/constant\n` +
+        `//   ${symbol.split(" → ")[0]}  → imports from shared module\n` +
+        `//   ${symbol.split(" → ")[1] || "…"} → imports from shared module`
+      );
+    }
+
+    case "doc_gap": {
+      // Prepend a JSDoc template above the real code
+      const jsdocTemplate =
+        `/**\n` +
+        ` * TODO: Describe what '${symbol}' does.\n` +
+        ` *\n` +
+        ` * @param {*} args - Describe parameters here\n` +
+        ` * @returns {*} Describe the return value here\n` +
+        ` */`;
+      return `${jsdocTemplate}\n${codeOnly}`;
+    }
+
+    case "missing_test": {
+      // Derive a human-readable test file name from the source path
+      const baseName = filePath.split("/").pop().replace(/\.[jt]sx?$/, "");
+      return (
+        `// ─── SUGGESTED TEST FILE: ${baseName}.test.js ───────────────────\n` +
+        `const { ${symbol} } = require("./${baseName}");\n` +
+        `\n` +
+        `describe("${symbol}", () => {\n` +
+        `  it("should exist and be a function", () => {\n` +
+        `    expect(typeof ${symbol}).toBe("function");\n` +
+        `  });\n` +
+        `\n` +
+        `  it("should handle the happy path", () => {\n` +
+        `    // TODO: arrange inputs, call ${symbol}(), assert the result\n` +
+        `    // const result = ${symbol}(/* args */);\n` +
+        `    // expect(result).toBe(/* expected */);\n` +
+        `  });\n` +
+        `\n` +
+        `  it("should handle edge cases", () => {\n` +
+        `    // TODO: test null/undefined inputs, boundary values, error paths\n` +
+        `  });\n` +
+        `});`
+      );
+    }
+
+    default:
+      return `// No automated fix template available for issue type: ${issueType}`;
+  }
+}
+
+/**
+ * Severity sort weight — lower number = higher priority.
+ */
+const SEVERITY_ORDER = { high: 0, medium: 1, low: 2 };
+
+/**
+ * Build a specific, file-aware explanation for a fix.
+ * This replaces the generic scanner description with a sentence that names
+ * the actual file and symbol so every card reads differently.
+ *
+ * @param {string} type     - Issue type
+ * @param {string} symbol   - Reported symbol (or "entire file")
+ * @param {string} filePath - Repo-relative file path
+ * @param {string} severity - "high" | "medium" | "low"
+ * @returns {string}
+ */
+function buildBobExplanation(type, symbol, filePath, severity) {
+  const file = filePath.split("/").pop(); // just the filename for readability
+
+  switch (type) {
+    case "dead_code":
+      return (
+        `\`${filePath}\` is never imported by any other module in this repository — ` +
+        `it's a completely orphaned file. Nothing depends on it, so deleting it ` +
+        `won't break anything. Keeping it around only adds confusion for anyone ` +
+        `trying to understand the codebase structure.`
+      );
+
+    case "circular_dep": {
+      // symbol holds the full chain, e.g. "a.js → b.js → a.js"
+      const parts = symbol.split(" → ");
+      const first = parts[0] ? parts[0].split("/").pop() : filePath;
+      const second = parts[1] ? parts[1].split("/").pop() : "another module";
+      return (
+        `\`${first}\` and \`${second}\` form a circular import chain. ` +
+        `Circular dependencies cause unpredictable initialisation order — one ` +
+        `module may see an incomplete version of the other at startup. They also ` +
+        `prevent bundlers from tree-shaking dead code and make unit testing harder.`
+      );
+    }
+
+    case "missing_test":
+      return (
+        `\`${symbol}\` inside \`${file}\` has no test file associated with it. ` +
+        `If this code breaks silently — due to a refactor or a dependency upgrade — ` +
+        `there's nothing to catch it before it reaches production. ` +
+        `${severity === "high" ? "This path is marked HIGH risk, meaning it is likely business-critical logic." : "Adding even a basic smoke test will significantly improve reliability."}`
+      );
+
+    case "doc_gap":
+      return (
+        `\`${symbol}\` is exported from \`${file}\` but has no JSDoc comment. ` +
+        `Any developer using an IDE will get zero autocomplete or parameter hints ` +
+        `when calling this function — a friction point during onboarding and code review. ` +
+        `Adding a /** ... */ block takes minutes and pays off indefinitely.`
+      );
+
+    default:
+      return `Issue detected in \`${filePath}\` (${type}, ${severity} severity): see the diff below for details.`;
+  }
+}
+
+/**
+ * Generate fix objects from health scan issues.
+ *
+ * Selection: up to 3 per category, sorted high → medium → low.
+ * Each fix uses real extracted code. AI is called per-issue;
+ * templates are used as fallback when AI is unavailable or fails.
+ *
+ * @param {Object} healthScanData - Output of runHealthScan()
+ * @param {string} repoPath       - Absolute path to the cloned repo (for disk fallback)
+ */
+async function generateAllFixes(healthScanData, repoPath) {
+  console.log(
+    `[${new Date().toISOString()}] Generating fixes (up to 3/category, AI + template fallback)...`,
+  );
+
+  // ── Step 1: Flatten all issues ────────────────────────────────────────────
+  const allIssues = [];
+  for (const file of healthScanData.files) {
+    for (const issue of file.issues) {
+      allIssues.push({ ...issue, filePath: file.path });
+    }
+  }
+
+  // ── Step 2: Group by type ─────────────────────────────────────────────────
+  const TYPES = ["dead_code", "circular_dep", "missing_test", "doc_gap"];
+  const grouped = {};
+  for (const type of TYPES) {
+    grouped[type] = allIssues.filter((i) => i.type === type);
+  }
+
+  // ── Step 3: Sort each group high → medium → low ───────────────────────────
+  for (const type of TYPES) {
+    grouped[type].sort(
+      (a, b) =>
+        (SEVERITY_ORDER[a.severity] ?? 99) - (SEVERITY_ORDER[b.severity] ?? 99),
+    );
+  }
+
+  // ── Step 4: Take up to 3 per group, call AI, fall back to templates ───────
+  const MAX_PER_CATEGORY = 3;
+  const fixes = [];
+  let fixIndex = 0;
+
+  for (const type of TYPES) {
+    const selected = grouped[type].slice(0, MAX_PER_CATEGORY);
+
+    for (const issue of selected) {
+      fixIndex++;
+
+      // Real code from cache or disk
+      const original = extractCodeSnippet(issue.filePath, issue.line, repoPath);
+
+      // Try AI first
+      let bobExplanation, proposed;
+      const aiResult = await generateFixWithGPT(issue, original);
+
+      if (aiResult) {
+        bobExplanation = aiResult.bobExplanation;
+        proposed       = aiResult.proposed;
+        console.log(`[${new Date().toISOString()}] ✓ AI fix: ${issue.type} → ${issue.filePath}`);
+      } else {
+        // Template fallback
+        proposed       = buildProposedFix(issue.type, issue.symbol || "unknown", issue.filePath, original);
+        bobExplanation = buildBobExplanation(issue.type, issue.symbol || "unknown", issue.filePath, issue.severity);
+        console.log(`[${new Date().toISOString()}] ↩ Template fallback: ${issue.type} → ${issue.filePath}`);
+      }
+
+      fixes.push({
+        id:               `fix-${fixIndex}`,
+        file:             issue.filePath,
+        issueType:        issue.type,
+        severity:         issue.severity,
+        symbol:           issue.symbol || "unknown",
+        line:             issue.line || "-",
+        issueDescription: issue.description,
+        status:           "pending",
+        original,
+        proposed,
+        bobExplanation,
+      });
+    }
+  }
+
+  console.log(
+    `[${new Date().toISOString()}] Generated ${fixes.length} fixes — ` +
+      TYPES.map((t) => `${t}: ${grouped[t].slice(0, MAX_PER_CATEGORY).length}`).join(", "),
+  );
+
+  return fixes;
+}
+
+/**
+ * Regenerate a specific fix with user feedback using GPT
+ */
+async function regenerateFixWithFeedback(fix, feedback) {
+  if (!isOpenAIConfigured()) {
+    // Fallback: just prepend feedback to explanation
+    return {
+      ...fix,
+      bobExplanation: `[Updated with your feedback: "${feedback}"] ${fix.bobExplanation}`,
+      status: "pending",
+    };
+  }
+
+  try {
+    const prompt = `You are Bob, an expert software architect AI. A developer has requested modifications to a code fix.
+
+Original Fix:
+File: ${fix.file}
+Issue Type: ${fix.issueType}
+Severity: ${fix.severity}
+Line: ${fix.line}
+
+Current Explanation: ${fix.bobExplanation}
+Current Original Code: ${fix.original}
+Current Proposed Fix: ${fix.proposed}
+Current Confidence: ${fix.confidence}%
+
+Developer Feedback: "${feedback}"
+
+Please regenerate the fix incorporating the developer's feedback. Respond with ONLY a JSON object (no markdown, no backticks):
+{
+  "bobExplanation": "updated explanation incorporating feedback",
+  "original": "original code (may be same or updated)",
+  "proposed": "updated proposed fix based on feedback",
+  "confidence": 90
+}`;
+
+    const response = await fetch(OPENAI_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: OPENAI_MODEL,
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are Bob, an expert software architect AI. Regenerate code fixes based on developer feedback. Return only JSON.",
+          },
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        temperature: 0.4,
+        max_tokens: 1200,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error(
+        `[${new Date().toISOString()}] OpenAI API error during regeneration: ${response.status}`,
+      );
+      // Fallback
+      return {
+        ...fix,
+        bobExplanation: `[Updated with your feedback: "${feedback}"] ${fix.bobExplanation}`,
+        status: "pending",
+      };
+    }
+
+    const data = await response.json();
+    const content = data.choices[0]?.message?.content?.trim();
+
+    if (!content) {
+      throw new Error("Empty response from OpenAI");
+    }
+
+    const parsed = JSON.parse(content);
+
+    return {
+      ...fix,
+      bobExplanation: parsed.bobExplanation,
+      original: parsed.original,
+      proposed: parsed.proposed,
+      confidence: parsed.confidence,
+      status: "pending",
+    };
+  } catch (error) {
+    console.error(
+      `[${new Date().toISOString()}] Error regenerating fix with GPT:`,
+      error.message,
+    );
+    // Fallback
+    return {
+      ...fix,
+      bobExplanation: `[Updated with your feedback: "${feedback}"] ${fix.bobExplanation}`,
+      status: "pending",
+    };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Legacy hardcoded fixes state - DEPRECATED, kept for reference only
 // ─────────────────────────────────────────────────────────────────────────────
 
 let fixesState = [
@@ -620,21 +1277,65 @@ app.post("/api/health-scan", async (req, res) => {
 //   fix.issueType, fix.bobExplanation, fix.original, fix.proposed,
 //   fix.status, fix.line, fix.file, fix.severity, fix.id, fix.confidence
 // ─────────────────────────────────────────────────────────────────────────────
-app.get("/api/fixes", (req, res) => {
-  res.json({
-    fixes: fixesState,
-    metadata: {
-      generatedAt: new Date().toISOString(),
-      totalFixes: fixesState.length,
-      byType: {
-        dead_code: fixesState.filter((f) => f.issueType === "dead_code").length,
-        missing_test: fixesState.filter((f) => f.issueType === "missing_test")
-          .length,
-        doc_gap: fixesState.filter((f) => f.issueType === "doc_gap").length,
+app.get("/api/fixes", async (req, res) => {
+  try {
+    const { repoPath } = req.query;
+
+    // Validate repoPath
+    if (!repoPath) {
+      return res.status(400).json({
+        error: "repoPath is required",
+        message: "Provide repoPath as a query parameter (e.g., /api/fixes?repoPath=/path/to/repo)",
+      });
+    }
+
+    // Verify the path exists
+    if (!fs.existsSync(repoPath)) {
+      return res.status(404).json({
+        error: "Repository path not found",
+        message: `No directory exists at: ${repoPath}`,
+      });
+    }
+
+    console.log(
+      `[${new Date().toISOString()}] GET /api/fixes — generating fixes for: ${repoPath}`,
+    );
+
+    // Run health scan to get real issues
+    const healthScanData = await runHealthScan(repoPath);
+
+    // Generate fixes from the health scan data — pass repoPath for disk fallback
+    fixesCache = await generateAllFixes(healthScanData, repoPath);
+    cacheTimestamp = new Date().toISOString();
+
+    res.json({
+      fixes: fixesCache,
+      metadata: {
+        generatedAt: cacheTimestamp,
+        totalFixes: fixesCache.length,
+        byType: {
+          dead_code: fixesCache.filter((f) => f.issueType === "dead_code")
+            .length,
+          missing_test: fixesCache.filter(
+            (f) => f.issueType === "missing_test",
+          ).length,
+          doc_gap: fixesCache.filter((f) => f.issueType === "doc_gap").length,
+          circular_dep: fixesCache.filter((f) => f.issueType === "circular_dep").length,
+        },
+        repository: repoPath,
+        aiProvider: isOpenAIConfigured() ? "OpenAI GPT" : "Fallback Data",
       },
-      repository: "expressjs/express",
-    },
-  });
+    });
+  } catch (error) {
+    console.error(
+      `[${new Date().toISOString()}] Error in GET /api/fixes:`,
+      error.message,
+    );
+    res.status(500).json({
+      error: "Failed to generate fixes",
+      message: error.message,
+    });
+  }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -643,7 +1344,7 @@ app.get("/api/fixes", (req, res) => {
 // Body: { decision: "approved" | "rejected" | "modified", feedback?: string }
 // Returns: the updated fix object (fixes.html uses the return value directly)
 // ─────────────────────────────────────────────────────────────────────────────
-app.post("/api/fixes/:id/decision", (req, res) => {
+app.post("/api/fixes/:id/decision", async (req, res) => {
   const { id } = req.params;
   const { decision, feedback } = req.body;
 
@@ -652,33 +1353,63 @@ app.post("/api/fixes/:id/decision", (req, res) => {
       .status(400)
       .json({ error: "decision must be: approved | rejected | modified" });
 
-  const fix = fixesState.find((f) => f.id === id);
-  if (!fix) return res.status(404).json({ error: `Fix '${id}' not found` });
-
-  if (decision === "modified" && feedback) {
-    // Regenerate explanation incorporating user feedback — stays pending
-    fix.bobExplanation = `[Updated with your feedback: "${feedback}"] ${fix.bobExplanation}`;
-    fix.status = "pending";
-    auditLog.push({
-      timestamp: new Date().toISOString(),
-      action: "FIX_GENERATED",
-      bobCapability: "Bob: Human-in-the-Loop",
-      file: fix.file,
-      note: `Regenerated fix for ${fix.issueType} based on user feedback`,
-    });
-  } else {
-    fix.status = decision; // "approved" or "rejected"
-    auditLog.push({
-      timestamp: new Date().toISOString(),
-      action: decision === "approved" ? "COMMIT" : "SKIPPED",
-      bobCapability: "Bob: Human-in-the-Loop",
-      file: fix.file,
-      note: `User ${decision} the ${fix.issueType} fix in ${fix.file} (${fix.severity} severity)`,
+  // Ensure fixes are loaded
+  if (!fixesCache) {
+    return res.status(400).json({
+      error: "No fixes available. Call GET /api/fixes first.",
     });
   }
 
-  // Return the full updated fix — fixes.html replaces its local copy with this
-  res.json(fix);
+  const fix = fixesCache.find((f) => f.id === id);
+  if (!fix) return res.status(404).json({ error: `Fix '${id}' not found` });
+
+  try {
+    if (decision === "modified" && feedback) {
+      console.log(
+        `[${new Date().toISOString()}] Regenerating fix ${id} with feedback: "${feedback}"`,
+      );
+
+      // Regenerate fix using GPT with user feedback
+      const updatedFix = await regenerateFixWithFeedback(fix, feedback);
+
+      // Update the fix in cache
+      const index = fixesCache.findIndex((f) => f.id === id);
+      if (index !== -1) {
+        fixesCache[index] = updatedFix;
+      }
+
+      auditLog.push({
+        timestamp: new Date().toISOString(),
+        action: "FIX_REGENERATED",
+        bobCapability: "Bob: Human-in-the-Loop",
+        file: fix.file,
+        note: `Regenerated fix for ${fix.issueType} based on user feedback: "${feedback.substring(0, 50)}${feedback.length > 50 ? "..." : ""}"`,
+      });
+
+      res.json(updatedFix);
+    } else {
+      // Approve or reject
+      fix.status = decision; // "approved" or "rejected"
+      auditLog.push({
+        timestamp: new Date().toISOString(),
+        action: decision === "approved" ? "COMMIT" : "SKIPPED",
+        bobCapability: "Bob: Human-in-the-Loop",
+        file: fix.file,
+        note: `User ${decision} the ${fix.issueType} fix in ${fix.file} (${fix.severity} severity)`,
+      });
+
+      res.json(fix);
+    }
+  } catch (error) {
+    console.error(
+      `[${new Date().toISOString()}] Error in POST /api/fixes/:id/decision:`,
+      error.message,
+    );
+    res.status(500).json({
+      error: "Failed to process decision",
+      message: error.message,
+    });
+  }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -696,9 +1427,15 @@ app.get("/api/audit-log", (req, res) => {
 // Returns: { success, branchName, commits[], summary{} }
 // ─────────────────────────────────────────────────────────────────────────────
 app.post("/api/apply", (req, res) => {
-  const approved = fixesState.filter((f) => f.status === "approved");
-  const rejected = fixesState.filter((f) => f.status === "rejected");
-  const pending = fixesState.filter((f) => f.status === "pending");
+  if (!fixesCache) {
+    return res.status(400).json({
+      error: "No fixes available. Call GET /api/fixes first.",
+    });
+  }
+
+  const approved = fixesCache.filter((f) => f.status === "approved");
+  const rejected = fixesCache.filter((f) => f.status === "rejected");
+  const pending = fixesCache.filter((f) => f.status === "pending");
 
   if (approved.length === 0)
     return res.status(400).json({
@@ -738,7 +1475,7 @@ app.post("/api/apply", (req, res) => {
     branchName,
     commits,
     summary: {
-      totalFound: fixesState.length,
+      totalFound: fixesCache.length,
       approved: approved.length,
       rejected: rejected.length,
       pending: pending.length,
@@ -747,12 +1484,18 @@ app.post("/api/apply", (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// POST /api/create-pr
+// POST /api/create-pr (Legacy endpoint - kept for backward compatibility)
 // apply.html calls this after Apply — opens a PR URL in a new tab
 // Returns: { success, prUrl, prNumber, title, body }
 // ─────────────────────────────────────────────────────────────────────────────
 app.post("/api/create-pr", (req, res) => {
-  const approved = fixesState.filter((f) => f.status === "approved");
+  if (!fixesCache) {
+    return res.status(400).json({
+      error: "No fixes available.",
+    });
+  }
+
+  const approved = fixesCache.filter((f) => f.status === "approved");
 
   const prNumber = Math.floor(Math.random() * 900) + 100;
   const prUrl = `https://github.com/expressjs/express/pull/${prNumber}`;

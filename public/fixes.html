@@ -463,7 +463,13 @@
         const errorEl = document.getElementById("error");
 
         try {
-          const response = await fetch("/api/fixes");
+          // Get repoPath from localStorage
+          const repoPath = localStorage.getItem("repoPath");
+          if (!repoPath) {
+            throw new Error("No repository path found. Please analyze a repository first.");
+          }
+
+          const response = await fetch(`/api/fixes?repoPath=${encodeURIComponent(repoPath)}`);
 
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -623,23 +629,44 @@
       }
 
       function createUnifiedDiff(fix) {
-        // Create a unified diff format from original and proposed
-        const header = `--- ${fix.file}\n+++ ${fix.file}\n@@ -1,${fix.original.split("\n").length} +1,${fix.proposed.split("\n").length} @@\n`;
-        
-        const originalLines = fix.original.split("\n");
-        const proposedLines = fix.proposed.split("\n");
-        
-        let diff = header;
-        
-        // Simple diff: mark all original lines as removed, all proposed as added
-        originalLines.forEach(line => {
+        // Strip the metadata header that extractCodeSnippet() prepends
+        // e.g. "// path/to/file  (lines 5–16)" — it's not real source code
+        function stripSnippetHeader(text) {
+          const lines = text.split("\n");
+          // The header is always the first line and matches one of two patterns:
+          //   "// path  (lines N–M)"           ← when a line number was found
+          //   "// (No specific line reported …" ← when line is "-" or null
+          if (
+            lines.length > 0 &&
+            (lines[0].match(/^\/\/ .+\(lines \d+/) ||
+              lines[0].startsWith("// (No specific line reported"))
+          ) {
+            lines.shift();
+          }
+          return lines.join("\n");
+        }
+
+        const cleanOriginal = stripSnippetHeader(fix.original);
+        const cleanProposed = fix.proposed; // proposed never has this header
+
+        const originalLines = cleanOriginal.split("\n");
+        const proposedLines = cleanProposed.split("\n");
+
+        // Unified diff header
+        const diffHeader = `--- ${fix.file}\n+++ ${fix.file}\n@@ -1,${originalLines.length} +1,${proposedLines.length} @@\n`;
+
+        let diff = diffHeader;
+
+        // Mark all original lines as removed, all proposed as added.
+        // This gives a clear "before → after" view for every fix type.
+        originalLines.forEach((line) => {
           diff += `-${line}\n`;
         });
-        
-        proposedLines.forEach(line => {
+
+        proposedLines.forEach((line) => {
           diff += `+${line}\n`;
         });
-        
+
         return diff;
       }
 
