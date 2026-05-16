@@ -1,0 +1,785 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Auto-Fix Queue | CodeAtlas</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/diff2html/bundles/css/diff2html.min.css"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/diff2html/bundles/js/diff2html-ui.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: #0d1117;
+        color: #c9d1d9;
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+      }
+
+      /* Header */
+      header {
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #30363d;
+      }
+
+      h1 {
+        font-size: 32px;
+        color: #58a6ff;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .subtitle {
+        font-size: 14px;
+        color: #8b949e;
+        margin-bottom: 15px;
+      }
+
+      .back-btn {
+        display: inline-block;
+        padding: 8px 16px;
+        background: #21262d;
+        color: #58a6ff;
+        text-decoration: none;
+        border-radius: 6px;
+        font-size: 14px;
+        border: 1px solid #30363d;
+        transition: all 0.2s;
+      }
+
+      .back-btn:hover {
+        background: #30363d;
+        border-color: #58a6ff;
+      }
+
+      /* Summary Bar */
+      .summary-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 20px 24px;
+        margin-bottom: 30px;
+      }
+
+      .summary-pill {
+        font-size: 16px;
+        color: #c9d1d9;
+        font-weight: 500;
+      }
+
+      .summary-pill span {
+        color: #8b949e;
+        margin: 0 8px;
+      }
+
+      .apply-btn {
+        padding: 10px 20px;
+        background: #238636;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 14px;
+        transition: all 0.2s;
+      }
+
+      .apply-btn:hover:not(:disabled) {
+        background: #2ea043;
+      }
+
+      .apply-btn:disabled {
+        background: #30363d;
+        color: #8b949e;
+        cursor: not-allowed;
+        opacity: 0.5;
+      }
+
+      /* Fix Cards */
+      .fix-card {
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 24px;
+        margin-bottom: 20px;
+        transition: all 0.2s;
+      }
+
+      .fix-card.approved {
+        border-left: 4px solid #238636;
+        opacity: 0.7;
+      }
+
+      .fix-card.rejected {
+        border-left: 4px solid #da3633;
+        opacity: 0.4;
+      }
+
+      .fix-card-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+      }
+
+      .file-badge {
+        padding: 6px 12px;
+        background: #21262d;
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 13px;
+        color: #58a6ff;
+      }
+
+      .issue-type-badge {
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .issue-type-badge.dead_code {
+        background: rgba(248, 81, 73, 0.15);
+        color: #f85149;
+      }
+
+      .issue-type-badge.missing_test {
+        background: rgba(227, 179, 65, 0.15);
+        color: #e3b341;
+      }
+
+      .issue-type-badge.doc_gap {
+        background: rgba(88, 166, 255, 0.15);
+        color: #58a6ff;
+      }
+
+      .severity-badge {
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .severity-badge.high {
+        background: rgba(255, 123, 114, 0.15);
+        color: #ff7b72;
+      }
+
+      .severity-badge.medium {
+        background: rgba(210, 153, 34, 0.15);
+        color: #d29922;
+      }
+
+      .severity-badge.low {
+        background: rgba(139, 148, 158, 0.15);
+        color: #8b949e;
+      }
+
+      .line-number {
+        font-size: 12px;
+        color: #8b949e;
+        font-family: monospace;
+      }
+
+      .status-badge {
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-left: auto;
+      }
+
+      .status-badge.approved {
+        background: rgba(35, 134, 54, 0.15);
+        color: #238636;
+      }
+
+      .status-badge.rejected {
+        background: rgba(218, 54, 51, 0.15);
+        color: #da3633;
+      }
+
+      .bob-explanation {
+        font-style: italic;
+        color: #8b949e;
+        font-size: 14px;
+        margin-bottom: 16px;
+        line-height: 1.5;
+      }
+
+      .diff-container {
+        margin: 16px 0;
+        border: 1px solid #30363d;
+        border-radius: 6px;
+        overflow: hidden;
+      }
+
+      .action-buttons {
+        display: flex;
+        gap: 12px;
+        margin-top: 16px;
+      }
+
+      .action-btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 14px;
+        transition: all 0.2s;
+      }
+
+      .action-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .approve-btn {
+        background: #238636;
+        color: white;
+      }
+
+      .approve-btn:hover:not(:disabled) {
+        background: #2ea043;
+      }
+
+      .reject-btn {
+        background: #da3633;
+        color: white;
+      }
+
+      .reject-btn:hover:not(:disabled) {
+        background: #e5534b;
+      }
+
+      .modify-btn {
+        background: #8957e5;
+        color: white;
+      }
+
+      .modify-btn:hover:not(:disabled) {
+        background: #9d6ff5;
+      }
+
+      .modify-section {
+        display: none;
+        margin-top: 16px;
+        padding: 16px;
+        background: #0d1117;
+        border: 1px solid #30363d;
+        border-radius: 6px;
+      }
+
+      .modify-section.visible {
+        display: block;
+      }
+
+      .modify-textarea {
+        width: 100%;
+        min-height: 80px;
+        padding: 12px;
+        background: #161b22;
+        border: 1px solid #30363d;
+        color: #c9d1d9;
+        border-radius: 6px;
+        font-size: 14px;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        resize: vertical;
+        margin-bottom: 12px;
+      }
+
+      .modify-textarea:focus {
+        outline: none;
+        border-color: #58a6ff;
+      }
+
+      .regenerate-btn {
+        padding: 10px 20px;
+        background: #8957e5;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 14px;
+        transition: all 0.2s;
+      }
+
+      .regenerate-btn:hover {
+        background: #9d6ff5;
+      }
+
+      /* Loading State */
+      .loading {
+        text-align: center;
+        padding: 60px 20px;
+      }
+
+      .loading-spinner {
+        width: 50px;
+        height: 50px;
+        margin: 0 auto 20px;
+        border: 4px solid #30363d;
+        border-top: 4px solid #58a6ff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .loading-text {
+        font-size: 16px;
+        color: #8b949e;
+      }
+
+      /* Error State */
+      .error {
+        background: rgba(255, 123, 114, 0.1);
+        border: 1px solid #ff7b72;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 20px 0;
+        color: #ff7b72;
+      }
+
+      .error-title {
+        font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 8px;
+      }
+
+      /* Scrollbar */
+      ::-webkit-scrollbar {
+        width: 10px;
+      }
+
+      ::-webkit-scrollbar-track {
+        background: #0d1117;
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background: #30363d;
+        border-radius: 5px;
+      }
+
+      ::-webkit-scrollbar-thumb:hover {
+        background: #484f58;
+      }
+
+      /* Responsive */
+      @media (max-width: 768px) {
+        h1 {
+          font-size: 24px;
+        }
+
+        .summary-bar {
+          flex-direction: column;
+          gap: 16px;
+          align-items: stretch;
+        }
+
+        .action-buttons {
+          flex-direction: column;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>🔧 Auto-Fix Queue</h1>
+        <p class="subtitle">
+          AI-generated fixes · human-approved changes
+        </p>
+        <a href="health.html" class="back-btn">← Back to Health Scan</a>
+      </header>
+
+      <div id="loading" class="loading">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Loading auto-fix queue...</div>
+      </div>
+
+      <div id="content" style="display: none">
+        <!-- Summary Bar -->
+        <div class="summary-bar">
+          <div class="summary-pill" id="summaryPill">
+            <span id="pendingCount">0</span> pending<span>·</span
+            ><span id="approvedCount">0</span> approved<span>·</span
+            ><span id="rejectedCount">0</span> rejected
+          </div>
+          <button id="applyBtn" class="apply-btn" disabled>
+            Apply Approved Fixes →
+          </button>
+        </div>
+
+        <!-- Fix Cards Container -->
+        <div id="fixCards"></div>
+      </div>
+
+      <div id="error" style="display: none"></div>
+    </div>
+
+    <script>
+      let fixesData = [];
+
+      // Fetch fixes on page load
+      async function loadFixes() {
+        const loadingEl = document.getElementById("loading");
+        const contentEl = document.getElementById("content");
+        const errorEl = document.getElementById("error");
+
+        try {
+          const response = await fetch("/api/fixes");
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+
+          const data = await response.json();
+          fixesData = data.fixes;
+
+          renderFixes();
+          updateSummary();
+
+          loadingEl.style.display = "none";
+          contentEl.style.display = "block";
+        } catch (error) {
+          console.error("Failed to load fixes:", error);
+
+          errorEl.innerHTML = `
+            <div class="error">
+              <div class="error-title">❌ Failed to Load Fixes</div>
+              <div>${error.message}</div>
+            </div>
+          `;
+
+          loadingEl.style.display = "none";
+          errorEl.style.display = "block";
+        }
+      }
+
+      function renderFixes() {
+        const container = document.getElementById("fixCards");
+        container.innerHTML = "";
+
+        fixesData.forEach((fix) => {
+          const card = createFixCard(fix);
+          container.appendChild(card);
+        });
+      }
+
+      function createFixCard(fix) {
+        const card = document.createElement("div");
+        card.className = `fix-card ${fix.status === "approved" ? "approved" : ""} ${fix.status === "rejected" ? "rejected" : ""}`;
+        card.id = `fix-${fix.id}`;
+
+        // Create header
+        const header = document.createElement("div");
+        header.className = "fix-card-header";
+
+        const fileBadge = document.createElement("span");
+        fileBadge.className = "file-badge";
+        fileBadge.textContent = fix.file;
+
+        const issueTypeBadge = document.createElement("span");
+        issueTypeBadge.className = `issue-type-badge ${fix.issueType}`;
+        issueTypeBadge.textContent = fix.issueType.replace(/_/g, " ");
+
+        const severityBadge = document.createElement("span");
+        severityBadge.className = `severity-badge ${fix.severity}`;
+        severityBadge.textContent = fix.severity;
+
+        const lineNumber = document.createElement("span");
+        lineNumber.className = "line-number";
+        lineNumber.textContent = `Line ${fix.line}`;
+
+        header.appendChild(fileBadge);
+        header.appendChild(issueTypeBadge);
+        header.appendChild(severityBadge);
+        header.appendChild(lineNumber);
+
+        // Add status badge if approved or rejected
+        if (fix.status === "approved" || fix.status === "rejected") {
+          const statusBadge = document.createElement("span");
+          statusBadge.className = `status-badge ${fix.status}`;
+          statusBadge.textContent = fix.status === "approved" ? "✓ APPROVED" : "✗ REJECTED";
+          header.appendChild(statusBadge);
+        }
+
+        // Bob's explanation
+        const explanation = document.createElement("div");
+        explanation.className = "bob-explanation";
+        explanation.textContent = fix.bobExplanation;
+
+        // Diff container
+        const diffContainer = document.createElement("div");
+        diffContainer.className = "diff-container";
+        diffContainer.id = `diff-${fix.id}`;
+
+        // Action buttons
+        const actionButtons = document.createElement("div");
+        actionButtons.className = "action-buttons";
+
+        const approveBtn = document.createElement("button");
+        approveBtn.className = "action-btn approve-btn";
+        approveBtn.textContent = "✓ Approve";
+        approveBtn.disabled = fix.status !== "pending";
+        approveBtn.onclick = () => handleDecision(fix.id, "approved");
+
+        const rejectBtn = document.createElement("button");
+        rejectBtn.className = "action-btn reject-btn";
+        rejectBtn.textContent = "✗ Reject";
+        rejectBtn.disabled = fix.status !== "pending";
+        rejectBtn.onclick = () => handleDecision(fix.id, "rejected");
+
+        const modifyBtn = document.createElement("button");
+        modifyBtn.className = "action-btn modify-btn";
+        modifyBtn.textContent = "✎ Modify";
+        modifyBtn.disabled = fix.status !== "pending";
+        modifyBtn.onclick = () => toggleModifySection(fix.id);
+
+        actionButtons.appendChild(approveBtn);
+        actionButtons.appendChild(rejectBtn);
+        actionButtons.appendChild(modifyBtn);
+
+        // Modify section
+        const modifySection = document.createElement("div");
+        modifySection.className = "modify-section";
+        modifySection.id = `modify-${fix.id}`;
+
+        const textarea = document.createElement("textarea");
+        textarea.className = "modify-textarea";
+        textarea.placeholder = "Describe the change — e.g. 'cover the null input edge case'";
+        textarea.id = `feedback-${fix.id}`;
+
+        const regenerateBtn = document.createElement("button");
+        regenerateBtn.className = "regenerate-btn";
+        regenerateBtn.textContent = "Regenerate →";
+        regenerateBtn.onclick = () => handleRegenerate(fix.id);
+
+        modifySection.appendChild(textarea);
+        modifySection.appendChild(regenerateBtn);
+
+        // Assemble card
+        card.appendChild(header);
+        card.appendChild(explanation);
+        card.appendChild(diffContainer);
+        card.appendChild(actionButtons);
+        card.appendChild(modifySection);
+
+        // Render diff after card is added to DOM
+        setTimeout(() => renderDiff(fix), 0);
+
+        return card;
+      }
+
+      function renderDiff(fix) {
+        const diffString = createUnifiedDiff(fix);
+        const targetElement = document.getElementById(`diff-${fix.id}`);
+
+        if (targetElement) {
+          const diff2htmlUi = new Diff2HtmlUI(targetElement, diffString, {
+            drawFileList: false,
+            matching: "lines",
+            outputFormat: "side-by-side",
+            synchronisedScroll: true,
+          });
+          diff2htmlUi.draw();
+        }
+      }
+
+      function createUnifiedDiff(fix) {
+        // Create a unified diff format from original and proposed
+        const header = `--- ${fix.file}\n+++ ${fix.file}\n@@ -1,${fix.original.split("\n").length} +1,${fix.proposed.split("\n").length} @@\n`;
+        
+        const originalLines = fix.original.split("\n");
+        const proposedLines = fix.proposed.split("\n");
+        
+        let diff = header;
+        
+        // Simple diff: mark all original lines as removed, all proposed as added
+        originalLines.forEach(line => {
+          diff += `-${line}\n`;
+        });
+        
+        proposedLines.forEach(line => {
+          diff += `+${line}\n`;
+        });
+        
+        return diff;
+      }
+
+      async function handleDecision(fixId, decision) {
+        try {
+          const response = await fetch(`/api/fixes/${fixId}/decision`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ decision }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+
+          const updatedFix = await response.json();
+
+          // Update local data
+          const index = fixesData.findIndex((f) => f.id === fixId);
+          if (index !== -1) {
+            fixesData[index] = updatedFix;
+          }
+
+          // Update UI
+          updateFixCard(updatedFix);
+          updateSummary();
+        } catch (error) {
+          console.error("Decision failed:", error);
+          alert(`Failed to ${decision} fix: ${error.message}`);
+        }
+      }
+
+      function updateFixCard(fix) {
+        const card = document.getElementById(`fix-${fix.id}`);
+        if (!card) return;
+
+        // Update card classes
+        card.className = `fix-card ${fix.status === "approved" ? "approved" : ""} ${fix.status === "rejected" ? "rejected" : ""}`;
+
+        // Disable buttons
+        const buttons = card.querySelectorAll(".action-btn");
+        buttons.forEach((btn) => (btn.disabled = true));
+
+        // Add status badge if not already present
+        const header = card.querySelector(".fix-card-header");
+        let statusBadge = header.querySelector(".status-badge");
+        
+        if (!statusBadge && (fix.status === "approved" || fix.status === "rejected")) {
+          statusBadge = document.createElement("span");
+          statusBadge.className = `status-badge ${fix.status}`;
+          statusBadge.textContent = fix.status === "approved" ? "✓ APPROVED" : "✗ REJECTED";
+          header.appendChild(statusBadge);
+        }
+
+        // Update explanation if it changed
+        const explanation = card.querySelector(".bob-explanation");
+        if (explanation) {
+          explanation.textContent = fix.bobExplanation;
+        }
+      }
+
+      function toggleModifySection(fixId) {
+        const section = document.getElementById(`modify-${fixId}`);
+        if (section) {
+          section.classList.toggle("visible");
+        }
+      }
+
+      async function handleRegenerate(fixId) {
+        const textarea = document.getElementById(`feedback-${fixId}`);
+        const feedback = textarea.value.trim();
+
+        if (!feedback) {
+          alert("Please provide feedback for the modification.");
+          return;
+        }
+
+        try {
+          const response = await fetch(`/api/fixes/${fixId}/decision`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ decision: "modified", feedback }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+
+          const updatedFix = await response.json();
+
+          // Update local data
+          const index = fixesData.findIndex((f) => f.id === fixId);
+          if (index !== -1) {
+            fixesData[index] = updatedFix;
+          }
+
+          // Update explanation in UI
+          const card = document.getElementById(`fix-${fixId}`);
+          const explanation = card.querySelector(".bob-explanation");
+          if (explanation) {
+            explanation.textContent = updatedFix.bobExplanation;
+          }
+
+          // Hide modify section
+          const section = document.getElementById(`modify-${fixId}`);
+          if (section) {
+            section.classList.remove("visible");
+          }
+
+          // Clear textarea
+          textarea.value = "";
+
+          alert("✅ Fix regenerated with your feedback!");
+        } catch (error) {
+          console.error("Regeneration failed:", error);
+          alert(`Failed to regenerate fix: ${error.message}`);
+        }
+      }
+
+      function updateSummary() {
+        const pending = fixesData.filter((f) => f.status === "pending").length;
+        const approved = fixesData.filter((f) => f.status === "approved").length;
+        const rejected = fixesData.filter((f) => f.status === "rejected").length;
+
+        document.getElementById("pendingCount").textContent = pending;
+        document.getElementById("approvedCount").textContent = approved;
+        document.getElementById("rejectedCount").textContent = rejected;
+
+        // Enable apply button if at least one fix is approved
+        const applyBtn = document.getElementById("applyBtn");
+        applyBtn.disabled = approved === 0;
+      }
+
+      // Apply approved fixes button handler
+      document.getElementById("applyBtn").addEventListener("click", () => {
+        window.location.href = 'apply.html';
+      });
+
+      // Load fixes when page loads
+      loadFixes();
+    </script>
+  </body>
+</html>

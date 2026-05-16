@@ -1,0 +1,659 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Apply + Audit Trail | CodeAtlas</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: #0d1117;
+        color: #c9d1d9;
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+      }
+
+      /* Header */
+      header {
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #30363d;
+      }
+
+      h1 {
+        font-size: 32px;
+        color: #58a6ff;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .subtitle {
+        font-size: 14px;
+        color: #8b949e;
+        margin-bottom: 15px;
+      }
+
+      .back-btn {
+        display: inline-block;
+        padding: 8px 16px;
+        background: #21262d;
+        color: #58a6ff;
+        text-decoration: none;
+        border-radius: 6px;
+        font-size: 14px;
+        border: 1px solid #30363d;
+        transition: all 0.2s;
+      }
+
+      .back-btn:hover {
+        background: #30363d;
+        border-color: #58a6ff;
+      }
+
+      /* Apply Panel */
+      .apply-panel {
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 24px;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+      }
+
+      .apply-panel-left h2 {
+        font-size: 18px;
+        color: #c9d1d9;
+        margin-bottom: 6px;
+      }
+
+      .apply-panel-left p {
+        font-size: 13px;
+        color: #8b949e;
+      }
+
+      .apply-panel-right {
+        display: flex;
+        gap: 12px;
+      }
+
+      .apply-btn {
+        padding: 10px 20px;
+        background: #238636;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 14px;
+        transition: all 0.2s;
+        white-space: nowrap;
+      }
+
+      .apply-btn:hover:not(:disabled) {
+        background: #2ea043;
+      }
+
+      .apply-btn:disabled {
+        background: #30363d;
+        color: #8b949e;
+        cursor: not-allowed;
+        opacity: 0.4;
+      }
+
+      .pr-btn {
+        padding: 10px 20px;
+        background: #58a6ff;
+        color: #0d1117;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 14px;
+        transition: all 0.2s;
+        white-space: nowrap;
+      }
+
+      .pr-btn:hover:not(:disabled) {
+        background: #79c0ff;
+      }
+
+      .pr-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      .pr-success {
+        font-size: 13px;
+        color: #238636;
+        margin-top: 8px;
+      }
+
+      /* Summary Cards */
+      .summary-cards {
+        display: none;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+
+      .summary-cards.visible {
+        display: grid;
+      }
+
+      .summary-card {
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 16px 20px;
+      }
+
+      .summary-card.approved {
+        border-left: 3px solid #238636;
+      }
+
+      .summary-card.rejected {
+        border-left: 3px solid #da3633;
+      }
+
+      .summary-card.pending {
+        border-left: 3px solid #8b949e;
+      }
+
+      .summary-card-label {
+        font-size: 13px;
+        color: #8b949e;
+        margin-bottom: 8px;
+      }
+
+      .summary-card-value {
+        font-size: 28px;
+        font-weight: 600;
+        color: #c9d1d9;
+      }
+
+      .branch-pill {
+        background: #0d1117;
+        border: 1px solid #30363d;
+        border-radius: 4px;
+        padding: 6px 12px;
+        font-size: 13px;
+        font-family: monospace;
+        color: #58a6ff;
+        display: inline-block;
+        margin-top: 16px;
+      }
+
+      /* Commit Log */
+      .commit-log {
+        display: none;
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 24px;
+        margin-bottom: 24px;
+      }
+
+      .commit-log.visible {
+        display: block;
+      }
+
+      .commit-log h2 {
+        font-size: 16px;
+        color: #c9d1d9;
+        margin-bottom: 12px;
+      }
+
+      .commit-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px solid #30363d;
+      }
+
+      .commit-row:last-child {
+        border-bottom: none;
+      }
+
+      .commit-message {
+        font-family: monospace;
+        font-size: 13px;
+        color: #c9d1d9;
+      }
+
+      .commit-message .check {
+        color: #238636;
+        margin-right: 8px;
+      }
+
+      .commit-file {
+        font-size: 12px;
+        color: #8b949e;
+      }
+
+      /* Audit Log */
+      .audit-log-section {
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 24px;
+      }
+
+      .audit-log-section h2 {
+        font-size: 18px;
+        color: #c9d1d9;
+        margin-bottom: 4px;
+      }
+
+      .audit-log-section .subtitle {
+        font-size: 13px;
+        color: #8b949e;
+        margin-bottom: 16px;
+      }
+
+      .audit-terminal {
+        background: #010409;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 20px;
+        font-family: monospace;
+        font-size: 12px;
+        max-height: 420px;
+        overflow-y: auto;
+      }
+
+      .audit-entry {
+        margin-bottom: 10px;
+      }
+
+      .audit-entry:last-child {
+        margin-bottom: 0;
+      }
+
+      .audit-timestamp {
+        color: #8b949e;
+      }
+
+      .audit-action {
+        margin-left: 4px;
+      }
+
+      .audit-action.ARCHITECT_ANALYSIS {
+        color: #58a6ff;
+      }
+
+      .audit-action.HEALTH_SCAN {
+        color: #e3b341;
+      }
+
+      .audit-action.FIX_GENERATED {
+        color: #8957e5;
+      }
+
+      .audit-action.COMMIT {
+        color: #238636;
+      }
+
+      .audit-action.SKIPPED {
+        color: #da3633;
+      }
+
+      .audit-action.PR_CREATED {
+        color: #58a6ff;
+      }
+
+      .audit-capability {
+        color: #8b949e;
+        margin-left: 8px;
+      }
+
+      .audit-note {
+        color: #8b949e;
+        font-style: italic;
+        margin-left: 8px;
+      }
+
+      .audit-file {
+        color: #c9d1d9;
+        margin-left: 8px;
+      }
+
+      .audit-separator {
+        border-bottom: 1px solid #1c2128;
+        margin-top: 10px;
+      }
+
+      /* Loading State */
+      .loading {
+        text-align: center;
+        padding: 40px 20px;
+      }
+
+      .loading-spinner {
+        width: 40px;
+        height: 40px;
+        margin: 0 auto 16px;
+        border: 4px solid #30363d;
+        border-top: 4px solid #58a6ff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .loading-text {
+        font-size: 14px;
+        color: #8b949e;
+      }
+
+      /* Scrollbar */
+      ::-webkit-scrollbar {
+        width: 10px;
+      }
+
+      ::-webkit-scrollbar-track {
+        background: #0d1117;
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background: #30363d;
+        border-radius: 5px;
+      }
+
+      ::-webkit-scrollbar-thumb:hover {
+        background: #484f58;
+      }
+
+      /* Responsive */
+      @media (max-width: 768px) {
+        h1 {
+          font-size: 24px;
+        }
+
+        .apply-panel {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        .apply-panel-right {
+          flex-direction: column;
+        }
+
+        .summary-cards {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>🚀 Apply + Audit Trail</h1>
+        <p class="subtitle">
+          Commit approved fixes · full BobShell audit log
+        </p>
+        <a href="fixes.html" class="back-btn">← Back to Fix Queue</a>
+      </header>
+
+      <!-- Apply Panel -->
+      <div class="apply-panel">
+        <div class="apply-panel-left">
+          <h2>Approved Fixes Ready to Apply</h2>
+          <p>
+            Fixes will be committed to a new branch. Nothing is pushed until
+            you click Apply.
+          </p>
+          <div id="prSuccess" class="pr-success" style="display: none"></div>
+        </div>
+        <div class="apply-panel-right">
+          <button id="applyBtn" class="apply-btn">
+            ⚡ Apply Approved Fixes →
+          </button>
+          <button id="prBtn" class="pr-btn" disabled>
+            Open Pull Request →
+          </button>
+        </div>
+      </div>
+
+      <!-- Summary Cards -->
+      <div id="summaryCards" class="summary-cards">
+        <div class="summary-card">
+          <div class="summary-card-label">Issues Found</div>
+          <div class="summary-card-value" id="totalFound">0</div>
+        </div>
+        <div class="summary-card approved">
+          <div class="summary-card-label">Fixes Applied</div>
+          <div class="summary-card-value" id="approved">0</div>
+        </div>
+        <div class="summary-card rejected">
+          <div class="summary-card-label">Rejected</div>
+          <div class="summary-card-value" id="rejected">0</div>
+        </div>
+        <div class="summary-card pending">
+          <div class="summary-card-label">Pending</div>
+          <div class="summary-card-value" id="pending">0</div>
+        </div>
+      </div>
+
+      <div id="branchPill" style="display: none">
+        <span class="branch-pill" id="branchName"></span>
+      </div>
+
+      <!-- Commit Log -->
+      <div id="commitLog" class="commit-log">
+        <h2>Committed Changes</h2>
+        <div id="commitList"></div>
+      </div>
+
+      <!-- Audit Log -->
+      <div class="audit-log-section">
+        <h2>🔍 BobShell Audit Log</h2>
+        <p class="subtitle">Every action Bob took — fully traceable</p>
+        <div id="auditTerminal" class="audit-terminal">
+          <div class="loading">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading audit log...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let applyResult = null;
+
+      // Load audit log on page load
+      async function loadAuditLog() {
+        const terminal = document.getElementById("auditTerminal");
+
+        try {
+          const response = await fetch("/api/audit-log");
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+
+          const auditLog = await response.json();
+          renderAuditLog(auditLog);
+        } catch (error) {
+          console.error("Failed to load audit log:", error);
+          terminal.innerHTML = `<div style="color: #ff7b72;">❌ Failed to load audit log: ${error.message}</div>`;
+        }
+      }
+
+      function renderAuditLog(auditLog) {
+        const terminal = document.getElementById("auditTerminal");
+        terminal.innerHTML = "";
+
+        auditLog.forEach((entry, index) => {
+          const entryDiv = document.createElement("div");
+          entryDiv.className = "audit-entry";
+
+          let html = `<span class="audit-timestamp">${entry.timestamp}</span>`;
+          html += `<span class="audit-action ${entry.action}">${entry.action}</span>`;
+          html += `<br><span class="audit-capability">  capability: ${entry.bobCapability}</span>`;
+
+          if (entry.note) {
+            html += `<br><span class="audit-note">  note: ${entry.note}</span>`;
+          }
+
+          if (entry.file) {
+            html += `<br><span class="audit-file">  file: ${entry.file}</span>`;
+          }
+
+          entryDiv.innerHTML = html;
+          terminal.appendChild(entryDiv);
+
+          // Add separator except for last entry
+          if (index < auditLog.length - 1) {
+            const separator = document.createElement("div");
+            separator.className = "audit-separator";
+            terminal.appendChild(separator);
+          }
+        });
+      }
+
+      // Apply button handler
+      document.getElementById("applyBtn").addEventListener("click", async () => {
+        const applyBtn = document.getElementById("applyBtn");
+        const prBtn = document.getElementById("prBtn");
+
+        applyBtn.disabled = true;
+        applyBtn.textContent = "⏳ Applying...";
+
+        try {
+          const response = await fetch("/api/apply", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || "Failed to apply fixes");
+          }
+
+          applyResult = await response.json();
+
+          // Update button
+          applyBtn.textContent = "✓ Applied";
+
+          // Show summary cards
+          document.getElementById("summaryCards").classList.add("visible");
+          document.getElementById("totalFound").textContent =
+            applyResult.summary.totalFound;
+          document.getElementById("approved").textContent =
+            applyResult.summary.approved;
+          document.getElementById("rejected").textContent =
+            applyResult.summary.rejected;
+          document.getElementById("pending").textContent =
+            applyResult.summary.pending;
+
+          // Show branch pill
+          document.getElementById("branchPill").style.display = "block";
+          document.getElementById("branchName").textContent =
+            "Branch created: " + applyResult.branchName;
+
+          // Show commit log
+          const commitLog = document.getElementById("commitLog");
+          commitLog.classList.add("visible");
+          const commitList = document.getElementById("commitList");
+          commitList.innerHTML = "";
+
+          applyResult.commits.forEach((commit) => {
+            const row = document.createElement("div");
+            row.className = "commit-row";
+
+            const message = document.createElement("div");
+            message.className = "commit-message";
+            message.innerHTML = `<span class="check">✓</span>${commit.commitMessage}`;
+
+            const file = document.createElement("div");
+            file.className = "commit-file";
+            file.textContent = commit.file;
+
+            row.appendChild(message);
+            row.appendChild(file);
+            commitList.appendChild(row);
+          });
+
+          // Enable PR button
+          prBtn.disabled = false;
+
+          // Reload audit log to show new entries
+          await loadAuditLog();
+        } catch (error) {
+          console.error("Apply failed:", error);
+          applyBtn.textContent = "⚡ Apply Approved Fixes →";
+          applyBtn.disabled = false;
+          alert(`Failed to apply fixes: ${error.message}`);
+        }
+      });
+
+      // PR button handler
+      document.getElementById("prBtn").addEventListener("click", async () => {
+        const prBtn = document.getElementById("prBtn");
+        const prSuccess = document.getElementById("prSuccess");
+
+        prBtn.disabled = true;
+        prBtn.textContent = "⏳ Creating PR...";
+
+        try {
+          const response = await fetch("/api/create-pr", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || "Failed to create PR");
+          }
+
+          const result = await response.json();
+
+          // Open PR in new tab
+          window.open(result.prUrl, "_blank");
+
+          // Show success message
+          prSuccess.textContent =
+            "✓ PR opened — audit log attached as PR comment";
+          prSuccess.style.display = "block";
+
+          prBtn.textContent = "✓ PR Created";
+
+          // Reload audit log to show PR creation entry
+          await loadAuditLog();
+        } catch (error) {
+          console.error("PR creation failed:", error);
+          prBtn.textContent = "Open Pull Request →";
+          prBtn.disabled = false;
+          alert(`Failed to create PR: ${error.message}`);
+        }
+      });
+
+      // Load audit log on page load
+      loadAuditLog();
+    </script>
+  </body>
+</html>
