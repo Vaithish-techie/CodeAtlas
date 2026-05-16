@@ -3,7 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Health Scan Dashboard | CodeAtlas</title>
+    <title>CodeAtlas | Health Scan Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@600;700&family=JetBrains+Mono:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
     <style>
       * {
         margin: 0;
@@ -559,13 +566,555 @@
       ::-webkit-scrollbar-thumb:hover {
         background: #484f58;
       }
+
+      :root {
+        --rr-bg: #0d1117;
+        --rr-card: rgba(22, 27, 34, 0.88);
+        --rr-card-strong: rgba(22, 27, 34, 0.96);
+        --rr-border: #30363d;
+        --rr-text: #f0f6fc;
+        --rr-muted: #8b949e;
+        --rr-blue: #58a6ff;
+        --rr-green: #3fb950;
+        --rr-red: #ff7b72;
+        --rr-amber: #e3b341;
+        --rr-purple: #a371f7;
+      }
+
+      body {
+        padding: 0 24px 48px;
+        background:
+          radial-gradient(circle at 14% 0%, rgba(255, 123, 114, 0.11), transparent 28%),
+          radial-gradient(circle at 88% 10%, rgba(88, 166, 255, 0.16), transparent 32%),
+          linear-gradient(rgba(88, 166, 255, 0.026) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(88, 166, 255, 0.026) 1px, transparent 1px),
+          var(--rr-bg);
+        background-size: auto, auto, 56px 56px, 56px 56px, auto;
+        color: var(--rr-text);
+        font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        letter-spacing: 0;
+        animation: pageIn 0.42s ease both;
+      }
+
+      @keyframes pageIn {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .app-nav {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        margin: 0 -24px 34px;
+        border-bottom: 1px solid rgba(48, 54, 61, 0.82);
+        background: rgba(13, 17, 23, 0.78);
+        backdrop-filter: blur(22px);
+      }
+
+      .nav-inner {
+        min-height: 72px;
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        color: var(--rr-text);
+        text-decoration: none;
+        font-family: "Space Grotesk", "Inter", sans-serif;
+        font-size: 21px;
+        font-weight: 700;
+        letter-spacing: 0;
+      }
+
+      .brand-mark {
+        width: 38px;
+        height: 38px;
+        display: inline-grid;
+        place-items: center;
+        border-radius: 12px;
+        border: 1px solid rgba(88, 166, 255, 0.36);
+        background: linear-gradient(135deg, rgba(88, 166, 255, 0.2), rgba(63, 185, 80, 0.1));
+        color: var(--rr-blue);
+        box-shadow: 0 0 26px rgba(88, 166, 255, 0.16);
+      }
+
+      .nav-right {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+
+      .stepper {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--rr-muted);
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .step {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 10px;
+        border: 1px solid rgba(48, 54, 61, 0.86);
+        border-radius: 999px;
+        background: rgba(22, 27, 34, 0.64);
+        white-space: nowrap;
+      }
+
+      .step.active {
+        color: var(--rr-amber);
+        border-color: rgba(227, 179, 65, 0.54);
+        box-shadow: 0 0 26px rgba(227, 179, 65, 0.12);
+      }
+
+      .auth-stepper {
+        display: none;
+      }
+
+      body.is-authenticated .auth-stepper {
+        display: flex;
+      }
+
+      .nav-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .container {
+        max-width: 1400px;
+      }
+
+      header {
+        margin-bottom: 28px;
+        padding: 0;
+        border: 0;
+      }
+
+      h1 {
+        color: var(--rr-text);
+        font-family: "Space Grotesk", "Inter", sans-serif;
+        font-size: clamp(36px, 5vw, 64px);
+        line-height: 0.98;
+        letter-spacing: 0;
+        margin-bottom: 14px;
+      }
+
+      .subtitle {
+        max-width: 680px;
+        color: #a6b1bf;
+        font-size: 16px;
+        line-height: 1.65;
+      }
+
+      .back-btn,
+      .rescan-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 38px;
+        padding: 0 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(48, 54, 61, 0.9);
+        background: rgba(22, 27, 34, 0.72);
+        color: var(--rr-blue);
+        font-weight: 800;
+        text-decoration: none;
+        box-shadow: none;
+        transition: all 0.2s ease;
+      }
+
+      .back-btn:hover,
+      .rescan-btn:hover {
+        transform: translateY(-1px);
+        border-color: rgba(88, 166, 255, 0.62);
+        background: rgba(88, 166, 255, 0.1);
+        box-shadow: 0 0 26px rgba(88, 166, 255, 0.15);
+      }
+
+      .back-btn:active,
+      .rescan-btn:active {
+        transform: scale(0.98);
+      }
+
+      .rescan-btn {
+        background: linear-gradient(135deg, #238636, #2ea043);
+        color: #fff;
+        border-color: rgba(63, 185, 80, 0.55);
+      }
+
+      .score-cards {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 18px;
+        margin-bottom: 28px;
+      }
+
+      .score-card {
+        position: relative;
+        min-height: 214px;
+        overflow: hidden;
+        border: 1px solid rgba(48, 54, 61, 0.9);
+        border-left-width: 4px;
+        border-radius: 18px;
+        background:
+          linear-gradient(145deg, rgba(22, 27, 34, 0.95), rgba(13, 17, 23, 0.86)),
+          radial-gradient(circle at 100% 0%, rgba(88, 166, 255, 0.12), transparent 34%);
+        padding: 28px;
+        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.24);
+      }
+
+      .score-card::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.035), transparent);
+        transform: translateX(-130%);
+        transition: transform 0.7s ease;
+      }
+
+      .score-card:hover {
+        transform: translateY(-4px);
+        border-color: rgba(88, 166, 255, 0.56);
+        box-shadow:
+          0 24px 72px rgba(0, 0, 0, 0.32),
+          0 0 42px rgba(88, 166, 255, 0.12);
+      }
+
+      .score-card:hover::after {
+        transform: translateX(130%);
+      }
+
+      .score-card.dead-code {
+        border-left-color: var(--rr-red);
+      }
+
+      .score-card.circular-deps {
+        border-left-color: var(--rr-purple) !important;
+        background:
+          linear-gradient(145deg, rgba(22, 27, 34, 0.95), rgba(13, 17, 23, 0.86)),
+          radial-gradient(circle at 100% 0%, rgba(163, 113, 247, 0.14), transparent 34%) !important;
+      }
+
+      .score-card.missing-tests {
+        border-left-color: var(--rr-amber);
+      }
+
+      .score-card.doc-gaps {
+        border-left-color: var(--rr-blue);
+      }
+
+      .score-card-icon {
+        width: 48px;
+        height: 48px;
+        display: inline-grid;
+        place-items: center;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.05);
+        font-size: 24px;
+      }
+
+      .score-card-title {
+        color: #b8c1cc;
+        font-weight: 800;
+      }
+
+      .score-card-value {
+        width: 92px;
+        height: 92px;
+        display: grid;
+        place-items: center;
+        margin-top: 20px;
+        border-radius: 50%;
+        background:
+          radial-gradient(circle at center, #161b22 0 55%, transparent 56%),
+          conic-gradient(currentColor 0 78%, rgba(48, 54, 61, 0.75) 78% 100%);
+        font-size: 42px;
+        font-weight: 900;
+        animation: ringPop 0.7s ease both;
+      }
+
+      @keyframes ringPop {
+        from {
+          transform: scale(0.82);
+          opacity: 0;
+        }
+        to {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+
+      .issues-section,
+      .metadata,
+      .issue-ai,
+      .error {
+        border-radius: 18px;
+      }
+
+      .issues-section {
+        background: linear-gradient(145deg, rgba(22, 27, 34, 0.92), rgba(13, 17, 23, 0.9));
+        border: 1px solid rgba(48, 54, 61, 0.9);
+        padding: 30px;
+        box-shadow: 0 18px 70px rgba(0, 0, 0, 0.24);
+      }
+
+      .issues-header {
+        color: var(--rr-text);
+        font-family: "Space Grotesk", "Inter", sans-serif;
+        font-size: 26px;
+        letter-spacing: 0;
+      }
+
+      .file-path {
+        color: #d2e7ff;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 14px;
+      }
+
+      .issue-row {
+        border-radius: 14px;
+        border: 1px solid rgba(48, 54, 61, 0.72);
+        border-left: 4px solid;
+        background: rgba(1, 4, 9, 0.42);
+        padding: 12px 14px;
+      }
+
+      .issue-row:hover {
+        transform: translateX(4px);
+        background: rgba(22, 27, 34, 0.8);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+      }
+
+      .severity-badge,
+      .issue-type {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        border-radius: 999px;
+        font-weight: 900;
+      }
+
+      .severity-badge::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: currentColor;
+        box-shadow: 0 0 10px currentColor;
+      }
+
+      .severity-badge.high::before {
+        animation: pulseDot 1.4s ease-in-out infinite;
+      }
+
+      @keyframes pulseDot {
+        0%,
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 0.45;
+          transform: scale(1.45);
+        }
+      }
+
+      .issue-type.dead_code::before {
+        content: "x";
+      }
+
+      .issue-type.missing_test::before {
+        content: "test";
+      }
+
+      .issue-type.doc_gap::before {
+        content: "doc";
+      }
+
+      .issue-type.circular_dependency::before {
+        content: "loop";
+      }
+
+      .issue-type.dead_code {
+        background: rgba(255, 123, 114, 0.13);
+        color: var(--rr-red);
+        border: 1px solid rgba(255, 123, 114, 0.24);
+      }
+
+      .issue-type.missing_test {
+        background: rgba(227, 179, 65, 0.13);
+        color: var(--rr-amber);
+        border: 1px solid rgba(227, 179, 65, 0.24);
+      }
+
+      .issue-type.doc_gap {
+        background: rgba(88, 166, 255, 0.13);
+        color: var(--rr-blue);
+        border: 1px solid rgba(88, 166, 255, 0.24);
+      }
+
+      .issue-type.circular_dependency {
+        background: rgba(163, 113, 247, 0.13);
+        color: var(--rr-purple);
+        border: 1px solid rgba(163, 113, 247, 0.24);
+      }
+
+      .issue-ai {
+        background:
+          linear-gradient(145deg, rgba(88, 166, 255, 0.12), rgba(13, 17, 23, 0.84)),
+          rgba(22, 27, 34, 0.9);
+      }
+
+      .metadata {
+        background: rgba(1, 4, 9, 0.38);
+        padding: 18px;
+      }
+
+      .metadata-value,
+      .issue-row .meta {
+        font-family: "JetBrains Mono", monospace;
+      }
+
+      .cache-indicator {
+        border-radius: 999px;
+      }
+
+      .loading {
+        position: relative;
+        overflow: hidden;
+        max-width: 760px;
+        margin: 40px auto;
+        border: 1px solid rgba(88, 166, 255, 0.24);
+        border-radius: 24px;
+        background: rgba(13, 17, 23, 0.72);
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.34);
+      }
+
+      .loading::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(90deg, transparent, rgba(88, 166, 255, 0.13), transparent);
+        transform: translateX(-100%);
+        animation: scannerSweep 1.9s ease-in-out infinite;
+      }
+
+      @keyframes scannerSweep {
+        to {
+          transform: translateX(100%);
+        }
+      }
+
+      .loading-spinner {
+        position: relative;
+        border-color: rgba(88, 166, 255, 0.14);
+        border-top-color: var(--rr-blue);
+        box-shadow: 0 0 34px rgba(88, 166, 255, 0.28);
+      }
+
+      .loading-text {
+        position: relative;
+      }
+
+      .error {
+        background: rgba(255, 123, 114, 0.1);
+        border-color: rgba(255, 123, 114, 0.36);
+      }
+
+      @media (max-width: 1150px) {
+        .stepper,
+        body.is-authenticated .auth-stepper {
+          display: none;
+        }
+
+        .score-cards {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 720px) {
+        body {
+          padding: 0 14px 36px;
+        }
+
+        .app-nav {
+          margin-inline: -14px;
+        }
+
+        .nav-inner,
+        .nav-right,
+        .nav-actions {
+          align-items: flex-start;
+          flex-direction: column;
+          height: auto;
+          padding-block: 14px;
+        }
+
+        .score-cards {
+          grid-template-columns: 1fr;
+        }
+      }
     </style>
   </head>
   <body>
+    <nav class="app-nav" aria-label="Primary">
+      <div class="nav-inner">
+        <a class="brand" href="landing.html" aria-label="CodeAtlas home">
+          <span class="brand-mark"><i data-lucide="git-pull-request"></i></span>
+          <span>CodeAtlas</span>
+        </a>
+        <div class="nav-right">
+          <div class="stepper auth-stepper" aria-label="Workflow steps">
+            <span class="step">Step 1: Analyse</span>
+            <span class="step active">Step 2: Scan</span>
+            <span class="step">Step 3: Fix</span>
+            <span class="step">Step 4: Apply</span>
+          </div>
+          <div class="nav-actions">
+            <a href="index.html" class="back-btn">← Architecture Map</a>
+            <a
+              href="fixes.html"
+              class="back-btn"
+              style="background: #238636; color: white; border-color: #238636"
+            >
+              View Auto-Fixes →
+            </a>
+            <button
+              id="rescanBtn"
+              class="back-btn rescan-btn"
+              style="display: none"
+            >
+              🔄 Re-Scan
+            </button>
+          </div>
+        </div>
+      </div>
+    </nav>
     <div class="container">
       <header>
         <h1>
-          🏥 Health Scan Dashboard
+          Health Scan Dashboard
           <span
             id="cacheIndicator"
             class="cache-indicator"
@@ -578,23 +1127,6 @@
           AI-powered code health analysis: Dead Code, Missing Tests, and
           Documentation Gaps
         </p>
-        <div class="header-actions">
-          <a href="index.html" class="back-btn">← Back to Architecture Map</a>
-          <a
-            href="fixes.html"
-            class="back-btn"
-            style="background: #238636; color: white; border-color: #238636"
-          >
-            View Auto-Fixes →
-          </a>
-          <button
-            id="rescanBtn"
-            class="back-btn rescan-btn"
-            style="display: none"
-          >
-            🔄 Re-Scan
-          </button>
-        </div>
       </header>
 
       <div id="loading" class="loading">
@@ -636,10 +1168,7 @@
             <div class="score-card-value" id="deadCodeCount">0</div>
           </div>
 
-          <div
-            class="score-card"
-            style="border-color: #30363d; background: #161b22"
-          >
+          <div class="score-card circular-deps">
             <div class="score-card-header">
               <div class="score-card-icon">🔄</div>
               <div class="score-card-title">
@@ -654,7 +1183,7 @@
             <div
               class="score-card-value"
               id="circularDepsCount"
-              style="color: #e3b341"
+              style="color: #a371f7"
             >
               0
             </div>
@@ -721,7 +1250,7 @@
               AI Risk Analysis Enabled
             </div>
             <div style="font-size: 13px; color: #8b949e; line-height: 1.5">
-              Groq AI has analyzed the
+              IBM Bob AI has analyzed the
               <strong style="color: #c9d1d9">top 5 most critical issues</strong>
               to provide actionable risk insights and remediation guidance.
             </div>
@@ -762,6 +1291,10 @@
 
     <script>
       // ── Guard: require a repoPath from localStorage ──────────────────────
+      if (localStorage.getItem("codeAtlasAuthenticated") === "true") {
+        document.body.classList.add("is-authenticated");
+      }
+
       const repoPath = localStorage.getItem("repoPath");
 
       if (!repoPath) {
@@ -859,7 +1392,7 @@
           "Dead Code Detector running...",
           "Missing Test Detector running...",
           "Doc Gap Finder running...",
-          "Enriching top issues with Groq AI...",
+          "Enriching top issues with IBM Bob AI...",
           "Aggregating results...",
         ];
         let statusIndex = 0;
@@ -997,7 +1530,7 @@
             rowEl.className = `issue-row sev-${issue.severity}`;
             rowEl.innerHTML =
               `<span class="severity-badge ${issue.severity}">${issue.severity}</span>` +
-              `<span class="issue-type">${typeLabel}</span>` +
+              `<span class="issue-type ${issue.type}">${typeLabel}</span>` +
               `<span class="sep">|</span>` +
               `<span class="meta">Line:&nbsp;${lineInfo}</span>` +
               `<span class="sep">|</span>` +
@@ -1022,6 +1555,10 @@
 
           issuesListEl.appendChild(fileGroupEl);
         });
+      }
+
+      if (window.lucide) {
+        lucide.createIcons();
       }
     </script>
   </body>

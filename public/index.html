@@ -3,14 +3,400 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CodeAtlas | AI Architecture Mapper</title>
+    <title>CodeAtlas | Analyse Repository</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@600;700&family=JetBrains+Mono:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
     <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
     <link rel="stylesheet" href="/style.css" />
+    <style>
+      :root {
+        --rr-bg: #0d1117;
+        --rr-panel: rgba(13, 17, 23, 0.94);
+        --rr-card: rgba(22, 27, 34, 0.86);
+        --rr-border: #30363d;
+        --rr-text: #f0f6fc;
+        --rr-muted: #8b949e;
+        --rr-blue: #58a6ff;
+        --rr-green: #3fb950;
+        --rr-red: #ff7b72;
+        --rr-amber: #e3b341;
+        --rr-purple: #a371f7;
+      }
+
+      body {
+        height: 100vh;
+        padding-top: 72px;
+        background:
+          radial-gradient(circle at 70% 0%, rgba(88, 166, 255, 0.17), transparent 28%),
+          radial-gradient(circle at 0% 80%, rgba(63, 185, 80, 0.1), transparent 34%),
+          var(--rr-bg);
+        font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .app-nav {
+        position: fixed;
+        inset: 0 0 auto 0;
+        z-index: 3000;
+        height: 72px;
+        border-bottom: 1px solid rgba(48, 54, 61, 0.82);
+        background: rgba(13, 17, 23, 0.78);
+        backdrop-filter: blur(22px);
+      }
+
+      .nav-inner {
+        height: 100%;
+        padding: 0 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        color: var(--rr-text);
+        text-decoration: none;
+        font-family: "Space Grotesk", "Inter", sans-serif;
+        font-size: 21px;
+        font-weight: 700;
+        letter-spacing: 0;
+      }
+
+      .brand-mark {
+        width: 38px;
+        height: 38px;
+        display: inline-grid;
+        place-items: center;
+        border-radius: 12px;
+        border: 1px solid rgba(88, 166, 255, 0.36);
+        background: linear-gradient(135deg, rgba(88, 166, 255, 0.2), rgba(63, 185, 80, 0.1));
+        color: var(--rr-blue);
+        box-shadow: 0 0 26px rgba(88, 166, 255, 0.16);
+      }
+
+      .app-nav svg {
+        width: 20px;
+        height: 20px;
+        background: none;
+        cursor: default;
+      }
+
+      .stepper {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--rr-muted);
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .step {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 10px;
+        border: 1px solid rgba(48, 54, 61, 0.86);
+        border-radius: 999px;
+        background: rgba(22, 27, 34, 0.64);
+        white-space: nowrap;
+      }
+
+      .step.active {
+        color: var(--rr-blue);
+        border-color: rgba(88, 166, 255, 0.52);
+        box-shadow: 0 0 26px rgba(88, 166, 255, 0.14);
+      }
+
+      .auth-stepper {
+        display: none;
+      }
+
+      body.is-authenticated .auth-stepper {
+        display: flex;
+      }
+
+      #sidebar {
+        width: 360px;
+        height: calc(100vh - 72px);
+        padding: 28px;
+        gap: 16px;
+        background:
+          linear-gradient(180deg, rgba(22, 27, 34, 0.96), rgba(1, 4, 9, 0.96)),
+          radial-gradient(circle at 30% 0%, rgba(88, 166, 255, 0.14), transparent 32%);
+        border-right: 1px solid rgba(48, 54, 61, 0.9);
+        box-shadow: 18px 0 60px rgba(0, 0, 0, 0.34);
+      }
+
+      #sidebar h2 {
+        font-family: "Space Grotesk", "Inter", sans-serif;
+        color: var(--rr-text);
+        font-size: 30px;
+        line-height: 1;
+        letter-spacing: 0;
+      }
+
+      .subtitle {
+        color: #a6b1bf;
+        line-height: 1.55;
+        margin: -6px 0 8px;
+      }
+
+      input {
+        min-height: 44px;
+        background: rgba(1, 4, 9, 0.7);
+        border: 1px solid rgba(48, 54, 61, 0.9);
+        border-radius: 12px;
+        color: var(--rr-text);
+        font-size: 13px;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+      }
+
+      input:focus {
+        border-color: rgba(88, 166, 255, 0.72);
+        box-shadow:
+          0 0 0 3px rgba(88, 166, 255, 0.12),
+          inset 0 1px 0 rgba(255, 255, 255, 0.04);
+      }
+
+      button {
+        border-radius: 12px;
+        border: 1px solid rgba(88, 166, 255, 0.28);
+        background: linear-gradient(135deg, #1f6feb, #388bfd);
+        box-shadow: 0 12px 32px rgba(31, 111, 235, 0.22);
+        font-weight: 800;
+      }
+
+      button:hover:not(:disabled) {
+        transform: translateY(-1px);
+        border-color: rgba(88, 166, 255, 0.75);
+        box-shadow:
+          0 16px 38px rgba(31, 111, 235, 0.32),
+          0 0 0 5px rgba(88, 166, 255, 0.1);
+      }
+
+      button:active:not(:disabled) {
+        transform: scale(0.98);
+      }
+
+      .secondary-btn {
+        background: rgba(22, 27, 34, 0.72);
+        border-color: rgba(48, 54, 61, 0.95);
+        color: #b9d9ff;
+        box-shadow: none;
+      }
+
+      .secondary-btn:hover:not(:disabled) {
+        background: rgba(88, 166, 255, 0.1);
+        color: var(--rr-blue);
+      }
+
+      #clearCacheBtn {
+        border-radius: 10px;
+      }
+
+      #stats,
+      .legend,
+      #details {
+        background: linear-gradient(145deg, rgba(22, 27, 34, 0.9), rgba(13, 17, 23, 0.85));
+        border: 1px solid rgba(48, 54, 61, 0.9);
+        border-radius: 14px;
+        box-shadow: 0 10px 34px rgba(0, 0, 0, 0.18);
+      }
+
+      #details {
+        padding: 18px;
+      }
+
+      .detail-title,
+      .legend-title,
+      #complexity-legend .legend-title {
+        color: var(--rr-blue);
+        font-weight: 900;
+        letter-spacing: 0.04em;
+      }
+
+      #graph-container {
+        height: calc(100vh - 72px);
+        background:
+          radial-gradient(circle at 50% 45%, rgba(88, 166, 255, 0.1), transparent 34%),
+          var(--rr-bg);
+      }
+
+      svg {
+        background:
+          linear-gradient(rgba(88, 166, 255, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(88, 166, 255, 0.035) 1px, transparent 1px),
+          radial-gradient(ellipse at center, #0d1a35 0%, #080f1e 72%);
+        background-size: 54px 54px, 54px 54px, auto;
+      }
+
+      #loader {
+        border-radius: 18px;
+        border-color: rgba(88, 166, 255, 0.34);
+        background: rgba(13, 17, 23, 0.9);
+        backdrop-filter: blur(18px);
+        box-shadow:
+          0 24px 90px rgba(0, 0, 0, 0.52),
+          0 0 56px rgba(88, 166, 255, 0.14);
+      }
+
+      .loader-spinner,
+      #intelligence-panel .loading-spinner {
+        border-color: rgba(88, 166, 255, 0.14);
+        border-top-color: var(--rr-blue);
+        box-shadow: 0 0 24px rgba(88, 166, 255, 0.3);
+      }
+
+      .top-right-controls {
+        top: 22px;
+      }
+
+      #complexity-legend,
+      #blast-badge,
+      #node-tooltip,
+      #context-menu {
+        border-radius: 14px;
+        border-color: rgba(48, 54, 61, 0.86);
+        background: rgba(13, 17, 23, 0.82);
+        backdrop-filter: blur(18px);
+      }
+
+      #blast-badge {
+        background: linear-gradient(135deg, rgba(255, 123, 114, 0.95), rgba(218, 54, 51, 0.95));
+        box-shadow: 0 14px 40px rgba(218, 54, 51, 0.28);
+      }
+
+      #intelligence-panel {
+        top: 72px;
+        height: calc(100vh - 72px);
+        width: 380px;
+        right: -410px;
+        padding: 26px;
+        background:
+          linear-gradient(180deg, rgba(22, 27, 34, 0.98), rgba(1, 4, 9, 0.96)),
+          radial-gradient(circle at 80% 0%, rgba(137, 87, 229, 0.16), transparent 34%);
+        border-left-color: rgba(48, 54, 61, 0.9);
+      }
+
+      #intelligence-panel.open {
+        right: 0;
+      }
+
+      #intelligence-panel .panel-title {
+        color: var(--rr-text);
+        font-family: "Space Grotesk", "Inter", sans-serif;
+        font-size: 18px;
+      }
+
+      #intelligence-panel .section-title {
+        color: #8fbfff;
+      }
+
+      #intelligence-panel .complexity-bar-container,
+      #intelligence-panel .stat-card,
+      #intelligence-panel .dependency-list,
+      #refactor-panel .rp-file-list,
+      #refactor-panel textarea,
+      .ai-output-box {
+        background: rgba(1, 4, 9, 0.62);
+        border-color: rgba(48, 54, 61, 0.84);
+        border-radius: 14px;
+      }
+
+      #intelligence-panel .ai-button,
+      #refactor-panel .rp-submit,
+      .blast-calc-btn {
+        border-radius: 12px;
+      }
+
+      .ai-output-box {
+        box-shadow: 0 14px 36px rgba(0, 0, 0, 0.26);
+      }
+
+      #stats-bar {
+        left: 360px;
+        width: calc(100% - 360px);
+        border-top-color: rgba(48, 54, 61, 0.84);
+        background: rgba(1, 4, 9, 0.78);
+        backdrop-filter: blur(16px);
+      }
+
+      #user-profile {
+        border-top-color: rgba(48, 54, 61, 0.9);
+      }
+
+      .profile-container {
+        padding: 12px;
+        border: 1px solid rgba(48, 54, 61, 0.86);
+        border-radius: 14px;
+        background: rgba(13, 17, 23, 0.62);
+      }
+
+      #user-avatar {
+        width: 36px;
+        height: 36px;
+        border-color: rgba(88, 166, 255, 0.46);
+      }
+
+      .logout-button {
+        box-shadow: none;
+      }
+
+      @media (max-width: 1100px) {
+        .stepper,
+        body.is-authenticated .auth-stepper {
+          display: none;
+        }
+      }
+
+      @media (max-width: 760px) {
+        body {
+          display: block;
+          overflow: auto;
+        }
+
+        #sidebar,
+        #graph-container {
+          width: 100%;
+          height: auto;
+          min-height: calc(100vh - 72px);
+        }
+
+        #stats-bar {
+          left: 0;
+          width: 100%;
+          flex-wrap: wrap;
+        }
+      }
+    </style>
   </head>
   <body>
+    <nav class="app-nav" aria-label="Primary">
+      <div class="nav-inner">
+        <a class="brand" href="landing.html" aria-label="CodeAtlas home">
+          <span class="brand-mark"><i data-lucide="git-pull-request"></i></span>
+          <span>CodeAtlas</span>
+        </a>
+        <div class="stepper auth-stepper" aria-label="Workflow steps">
+          <span class="step active">Step 1: Analyse</span>
+          <span class="step">Step 2: Scan</span>
+          <span class="step">Step 3: Fix</span>
+          <span class="step">Step 4: Apply</span>
+        </div>
+      </div>
+    </nav>
     <div id="sidebar">
-      <h2>🗺️ CodeAtlas</h2>
-      <p class="subtitle">Interactive codebase architecture mapper</p>
+      <h2>CodeAtlas</h2>
+      <p class="subtitle">Paste a GitHub repository and let Bob map the architecture before repair.</p>
       <div style="display: flex; gap: 5px; margin-bottom: 10px">
         <input
           type="text"
@@ -441,6 +827,10 @@
       >
     </div>
     <script>
+      if (localStorage.getItem("codeAtlasAuthenticated") === "true") {
+        document.body.classList.add("is-authenticated");
+      }
+
       const btn = document.getElementById("analyzeBtn");
       const healthScanBtn = document.getElementById("healthScanBtn");
       const loader = document.getElementById("loader");
@@ -1592,6 +1982,7 @@
       // Logout & Session Handling
       const logoutBtn = document.getElementById("logoutBtn");
       logoutBtn.addEventListener("click", () => {
+        localStorage.removeItem("codeAtlasAuthenticated");
         window.location.href = "/auth/logout";
       });
 
@@ -1601,16 +1992,24 @@
           const res = await fetch("/api/session");
           const data = await res.json();
           if (data.authenticated && data.user) {
+            localStorage.setItem("codeAtlasAuthenticated", "true");
+            document.body.classList.add("is-authenticated");
             document.getElementById("user-profile").style.display = "block";
             document.getElementById("user-avatar").src = data.user.avatar;
             document.getElementById("user-name").textContent =
               data.user.username;
+          } else {
+            localStorage.removeItem("codeAtlasAuthenticated");
+            document.body.classList.remove("is-authenticated");
           }
         } catch (err) {
           console.error("Session error:", err);
         }
       }
       initSession();
+      if (window.lucide) {
+        lucide.createIcons();
+      }
     </script>
   </body>
 </html>

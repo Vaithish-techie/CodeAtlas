@@ -3,7 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Apply + Audit Trail | CodeAtlas</title>
+    <title>CodeAtlas | Apply + Audit Trail</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@600;700&family=JetBrains+Mono:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
     <style>
       * {
         margin: 0;
@@ -406,16 +413,562 @@
           grid-template-columns: 1fr;
         }
       }
+
+      :root {
+        --rr-bg: #0d1117;
+        --rr-card: rgba(22, 27, 34, 0.9);
+        --rr-border: #30363d;
+        --rr-text: #f0f6fc;
+        --rr-muted: #8b949e;
+        --rr-blue: #58a6ff;
+        --rr-green: #3fb950;
+        --rr-red: #ff7b72;
+        --rr-amber: #e3b341;
+        --rr-purple: #a371f7;
+      }
+
+      body {
+        padding: 0 24px 48px;
+        background:
+          radial-gradient(circle at 10% 0%, rgba(63, 185, 80, 0.14), transparent 30%),
+          radial-gradient(circle at 90% 10%, rgba(88, 166, 255, 0.14), transparent 32%),
+          linear-gradient(rgba(88, 166, 255, 0.026) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(88, 166, 255, 0.026) 1px, transparent 1px),
+          var(--rr-bg);
+        background-size: auto, auto, 56px 56px, 56px 56px, auto;
+        color: var(--rr-text);
+        font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        letter-spacing: 0;
+        animation: pageIn 0.42s ease both;
+      }
+
+      @keyframes pageIn {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .app-nav {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        margin: 0 -24px 34px;
+        border-bottom: 1px solid rgba(48, 54, 61, 0.82);
+        background: rgba(13, 17, 23, 0.78);
+        backdrop-filter: blur(22px);
+      }
+
+      .nav-inner {
+        min-height: 72px;
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        color: var(--rr-text);
+        text-decoration: none;
+        font-family: "Space Grotesk", "Inter", sans-serif;
+        font-size: 21px;
+        font-weight: 700;
+        letter-spacing: 0;
+      }
+
+      .brand-mark {
+        width: 38px;
+        height: 38px;
+        display: inline-grid;
+        place-items: center;
+        border-radius: 12px;
+        border: 1px solid rgba(88, 166, 255, 0.36);
+        background: linear-gradient(135deg, rgba(88, 166, 255, 0.2), rgba(63, 185, 80, 0.1));
+        color: var(--rr-blue);
+        box-shadow: 0 0 26px rgba(88, 166, 255, 0.16);
+      }
+
+      .nav-right {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+
+      .stepper {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--rr-muted);
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .step {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 10px;
+        border: 1px solid rgba(48, 54, 61, 0.86);
+        border-radius: 999px;
+        background: rgba(22, 27, 34, 0.64);
+        white-space: nowrap;
+      }
+
+      .step.active {
+        color: var(--rr-green);
+        border-color: rgba(63, 185, 80, 0.55);
+        box-shadow: 0 0 26px rgba(63, 185, 80, 0.14);
+      }
+
+      .auth-stepper {
+        display: none;
+      }
+
+      body.is-authenticated .auth-stepper {
+        display: flex;
+      }
+
+      .container {
+        max-width: 1400px;
+      }
+
+      header {
+        margin-bottom: 28px;
+        padding: 0;
+        border: 0;
+      }
+
+      h1 {
+        color: var(--rr-text);
+        font-family: "Space Grotesk", "Inter", sans-serif;
+        font-size: clamp(36px, 5vw, 64px);
+        line-height: 0.98;
+        letter-spacing: 0;
+        margin-bottom: 14px;
+      }
+
+      .subtitle {
+        max-width: 680px;
+        color: #a6b1bf;
+        font-size: 16px;
+        line-height: 1.65;
+      }
+
+      .back-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 38px;
+        padding: 0 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(48, 54, 61, 0.9);
+        background: rgba(22, 27, 34, 0.72);
+        color: var(--rr-blue);
+        font-weight: 800;
+        text-decoration: none;
+        box-shadow: none;
+        transition: all 0.2s ease;
+      }
+
+      .back-btn:hover {
+        transform: translateY(-1px);
+        border-color: rgba(88, 166, 255, 0.62);
+        background: rgba(88, 166, 255, 0.1);
+        box-shadow: 0 0 26px rgba(88, 166, 255, 0.15);
+      }
+
+      .back-btn:active,
+      .apply-btn:active,
+      .pr-btn:active {
+        transform: scale(0.98);
+      }
+
+      .apply-panel,
+      .summary-card,
+      .commit-log,
+      .audit-log-section {
+        border-radius: 18px;
+        border: 1px solid rgba(48, 54, 61, 0.9);
+        background:
+          linear-gradient(145deg, rgba(22, 27, 34, 0.94), rgba(13, 17, 23, 0.88)),
+          radial-gradient(circle at 100% 0%, rgba(63, 185, 80, 0.1), transparent 34%);
+        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.24);
+      }
+
+      .apply-panel {
+        padding: 30px;
+      }
+
+      .apply-panel-left h2,
+      .commit-log h2,
+      .audit-log-section h2 {
+        color: var(--rr-text);
+        font-family: "Space Grotesk", "Inter", sans-serif;
+        font-size: 22px;
+      }
+
+      .apply-panel-left p {
+        color: #a6b1bf;
+        line-height: 1.6;
+      }
+
+      .apply-panel-right {
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .apply-btn,
+      .pr-btn {
+        min-height: 46px;
+        border-radius: 12px;
+        border: 1px solid transparent;
+        font-weight: 900;
+      }
+
+      .apply-btn {
+        background: linear-gradient(135deg, #238636, #2ea043);
+        border-color: rgba(63, 185, 80, 0.52);
+        box-shadow: 0 14px 38px rgba(35, 134, 54, 0.26);
+      }
+
+      .apply-btn:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow:
+          0 18px 46px rgba(35, 134, 54, 0.36),
+          0 0 0 5px rgba(35, 134, 54, 0.1);
+      }
+
+      .pr-btn {
+        background: linear-gradient(135deg, #58a6ff, #79c0ff);
+        color: #06101f;
+        border-color: rgba(88, 166, 255, 0.56);
+        box-shadow: 0 14px 38px rgba(88, 166, 255, 0.2);
+      }
+
+      .pr-btn:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow:
+          0 18px 46px rgba(88, 166, 255, 0.3),
+          0 0 0 5px rgba(88, 166, 255, 0.1);
+      }
+
+      .apply-btn:disabled,
+      .pr-btn:disabled {
+        background: rgba(48, 54, 61, 0.62);
+        color: var(--rr-muted);
+        border: 1px solid rgba(48, 54, 61, 0.9);
+        box-shadow: none;
+      }
+
+      .pr-success {
+        color: #aff5b4;
+        font-weight: 800;
+        animation: celebrate 0.6s ease both;
+      }
+
+      @keyframes celebrate {
+        0% {
+          opacity: 0;
+          transform: scale(0.92);
+        }
+        55% {
+          transform: scale(1.04);
+        }
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+
+      .summary-cards {
+        gap: 18px;
+      }
+
+      .summary-cards.visible {
+        animation: cardsIn 0.46s ease both;
+      }
+
+      @keyframes cardsIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .summary-card {
+        position: relative;
+        overflow: hidden;
+        padding: 22px;
+      }
+
+      .summary-card::before {
+        content: "";
+        position: absolute;
+        inset: 0 0 auto 0;
+        height: 3px;
+        background: var(--rr-blue);
+      }
+
+      .summary-card.approved::before {
+        background: var(--rr-green);
+      }
+
+      .summary-card.rejected::before {
+        background: var(--rr-red);
+      }
+
+      .summary-card.pending::before {
+        background: var(--rr-amber);
+      }
+
+      .summary-card-label {
+        color: #a6b1bf;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .summary-card-value {
+        margin-top: 8px;
+        color: var(--rr-text);
+        font-size: 46px;
+        font-weight: 900;
+        line-height: 1;
+      }
+
+      .summary-card.approved .summary-card-value {
+        color: var(--rr-green);
+      }
+
+      .summary-card.rejected .summary-card-value {
+        color: var(--rr-red);
+      }
+
+      .summary-card.pending .summary-card-value {
+        color: var(--rr-amber);
+      }
+
+      .branch-pill {
+        border-radius: 999px;
+        border-color: rgba(88, 166, 255, 0.32);
+        background: rgba(88, 166, 255, 0.09);
+        color: var(--rr-blue);
+        font-family: "JetBrains Mono", monospace;
+        font-weight: 800;
+      }
+
+      .commit-log {
+        padding: 26px;
+      }
+
+      .commit-row {
+        border-bottom-color: rgba(48, 54, 61, 0.78);
+        gap: 18px;
+      }
+
+      .commit-message,
+      .commit-file {
+        font-family: "JetBrains Mono", monospace;
+      }
+
+      .commit-message .check {
+        display: inline-grid;
+        width: 22px;
+        height: 22px;
+        place-items: center;
+        border-radius: 50%;
+        background: rgba(63, 185, 80, 0.14);
+        color: var(--rr-green);
+      }
+
+      .audit-log-section {
+        padding: 28px;
+      }
+
+      .terminal-shell {
+        overflow: hidden;
+        border: 1px solid rgba(48, 54, 61, 0.9);
+        border-radius: 18px;
+        background: #010409;
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.03),
+          0 18px 52px rgba(0, 0, 0, 0.24);
+      }
+
+      .terminal-header {
+        height: 44px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 16px;
+        border-bottom: 1px solid rgba(48, 54, 61, 0.84);
+        background: rgba(22, 27, 34, 0.72);
+        color: var(--rr-muted);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .terminal-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+      }
+
+      .terminal-dot.red {
+        background: #ff5f57;
+      }
+
+      .terminal-dot.amber {
+        background: #ffbd2e;
+      }
+
+      .terminal-dot.green {
+        background: #28c840;
+      }
+
+      .audit-terminal {
+        border: 0;
+        border-radius: 0;
+        background:
+          linear-gradient(rgba(88, 166, 255, 0.026) 1px, transparent 1px),
+          #010409;
+        background-size: 100% 28px;
+        padding: 22px;
+        font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+        font-size: 12.5px;
+        line-height: 1.7;
+      }
+
+      .audit-terminal::after {
+        content: "█";
+        display: inline-block;
+        margin-top: 8px;
+        color: var(--rr-blue);
+        animation: cursorBlink 1s steps(2, start) infinite;
+      }
+
+      @keyframes cursorBlink {
+        50% {
+          opacity: 0;
+        }
+      }
+
+      .audit-entry {
+        animation: auditIn 0.36s ease both;
+      }
+
+      @keyframes auditIn {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .audit-timestamp {
+        color: #6e7681;
+      }
+
+      .audit-action {
+        display: inline-flex;
+        margin-left: 8px;
+        padding: 2px 7px;
+        border-radius: 999px;
+        background: rgba(88, 166, 255, 0.1);
+        font-weight: 900;
+      }
+
+      .audit-capability,
+      .audit-note,
+      .audit-file {
+        margin-left: 16px;
+      }
+
+      .audit-separator {
+        border-bottom-color: rgba(48, 54, 61, 0.5);
+      }
+
+      .loading-spinner {
+        border-color: rgba(88, 166, 255, 0.14);
+        border-top-color: var(--rr-blue);
+        box-shadow: 0 0 34px rgba(88, 166, 255, 0.28);
+      }
+
+      @media (max-width: 1150px) {
+        .stepper,
+        body.is-authenticated .auth-stepper {
+          display: none;
+        }
+      }
+
+      @media (max-width: 720px) {
+        body {
+          padding: 0 14px 36px;
+        }
+
+        .app-nav {
+          margin-inline: -14px;
+        }
+
+        .nav-inner,
+        .nav-right {
+          align-items: flex-start;
+          flex-direction: column;
+          height: auto;
+          padding-block: 14px;
+        }
+
+        .commit-row {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+      }
     </style>
   </head>
   <body>
+    <nav class="app-nav" aria-label="Primary">
+      <div class="nav-inner">
+        <a class="brand" href="landing.html" aria-label="CodeAtlas home">
+          <span class="brand-mark"><i data-lucide="git-pull-request"></i></span>
+          <span>CodeAtlas</span>
+        </a>
+        <div class="nav-right">
+          <div class="stepper auth-stepper" aria-label="Workflow steps">
+            <span class="step">Step 1: Analyse</span>
+            <span class="step">Step 2: Scan</span>
+            <span class="step">Step 3: Fix</span>
+            <span class="step active">Step 4: Apply</span>
+          </div>
+          <a href="fixes.html" class="back-btn">← Fix Queue</a>
+        </div>
+      </div>
+    </nav>
     <div class="container">
       <header>
-        <h1>🚀 Apply + Audit Trail</h1>
+        <h1>Apply + Audit Trail</h1>
         <p class="subtitle">
           Commit approved fixes · full BobShell audit log
         </p>
-        <a href="fixes.html" class="back-btn">← Back to Fix Queue</a>
       </header>
 
       <!-- Apply Panel -->
@@ -470,18 +1023,30 @@
 
       <!-- Audit Log -->
       <div class="audit-log-section">
-        <h2>🔍 BobShell Audit Log</h2>
+        <h2>BobShell Audit Log</h2>
         <p class="subtitle">Every action Bob took — fully traceable</p>
-        <div id="auditTerminal" class="audit-terminal">
-          <div class="loading">
-            <div class="loading-spinner"></div>
-            <div class="loading-text">Loading audit log...</div>
+        <div class="terminal-shell">
+          <div class="terminal-header">
+            <span class="terminal-dot red"></span>
+            <span class="terminal-dot amber"></span>
+            <span class="terminal-dot green"></span>
+            <span style="margin-left: 8px">bob-shell audit trail</span>
+          </div>
+          <div id="auditTerminal" class="audit-terminal">
+            <div class="loading">
+              <div class="loading-spinner"></div>
+              <div class="loading-text">Loading audit log...</div>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
     <script>
+      if (localStorage.getItem("codeAtlasAuthenticated") === "true") {
+        document.body.classList.add("is-authenticated");
+      }
+
       let applyResult = null;
 
       // Load audit log on page load
@@ -654,6 +1219,9 @@
 
       // Load audit log on page load
       loadAuditLog();
+      if (window.lucide) {
+        lucide.createIcons();
+      }
     </script>
   </body>
 </html>
