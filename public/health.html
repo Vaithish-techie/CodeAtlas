@@ -376,7 +376,18 @@
 
       <div id="loading" class="loading">
         <div class="loading-spinner"></div>
-        <div class="loading-text">Running health scan analysis...</div>
+        <div class="loading-text">
+          <div style="font-size: 18px; margin-bottom: 12px;">🤖 AI Health Scan in Progress...</div>
+          <div id="loadingStatus" style="font-size: 14px; color: #8b949e;">
+            Initializing Qwen3 Next 80B...
+          </div>
+          <div id="loadingTimer" style="font-size: 12px; color: #6e7681; margin-top: 8px;">
+            Elapsed: <span id="elapsedTime">0</span>s
+          </div>
+          <div style="font-size: 12px; color: #6e7681; margin-top: 4px;">
+            ⏱️ AI analysis may take 30-60 seconds
+          </div>
+        </div>
       </div>
 
       <div id="content" style="display: none">
@@ -445,9 +456,38 @@
         const loadingEl = document.getElementById("loading");
         const contentEl = document.getElementById("content");
         const errorEl = document.getElementById("error");
+        const statusEl = document.getElementById("loadingStatus");
+        const timerEl = document.getElementById("elapsedTime");
+
+        // Start timer
+        let startTime = Date.now();
+        const timerInterval = setInterval(() => {
+          const elapsed = Math.floor((Date.now() - startTime) / 1000);
+          timerEl.textContent = elapsed;
+        }, 1000);
+
+        // Update status messages
+        const statusMessages = [
+          "Connecting to Qwen3 Next 80B...",
+          "Running Dead Code Detector...",
+          "Running Missing Test Detector...",
+          "Running Doc Gap Finder...",
+          "Analyzing results...",
+        ];
+        let statusIndex = 0;
+        const statusInterval = setInterval(() => {
+          if (statusIndex < statusMessages.length) {
+            statusEl.textContent = statusMessages[statusIndex];
+            statusIndex++;
+          }
+        }, 8000); // Change status every 8 seconds
 
         try {
           const response = await fetch("/api/health-scan");
+          
+          // Clear intervals
+          clearInterval(timerInterval);
+          clearInterval(statusInterval);
 
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -484,6 +524,10 @@
           contentEl.style.display = "block";
         } catch (error) {
           console.error("Health scan error:", error);
+          
+          // Clear intervals
+          clearInterval(timerInterval);
+          clearInterval(statusInterval);
 
           errorEl.innerHTML = `
             <div class="error">
@@ -491,6 +535,12 @@
               <div>${error.message}</div>
               <div style="margin-top: 12px; font-size: 14px;">
                 Make sure you've analyzed a repository first using the Architecture Map.
+              </div>
+              <div style="margin-top: 12px; font-size: 14px; color: #8b949e;">
+                <strong>Troubleshooting:</strong><br>
+                • Check if the server was restarted after adding the API key<br>
+                • Verify your OPENROUTER_API_KEY is set in the .env file<br>
+                • Check the server console for detailed error messages
               </div>
             </div>
           `;
