@@ -920,18 +920,66 @@
       #stats-bar .divider {
         color: #334155;
       }
+
+      /* Tooltip Styles */
+      .tooltip-trigger {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+      }
+      .tooltip-content {
+        visibility: hidden;
+        position: absolute;
+        bottom: 100%;
+        left: 0;
+        transform: translateY(-8px);
+        background: #1e293b;
+        color: #e2e8f0;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 400;
+        white-space: normal;
+        width: 240px;
+        z-index: 200;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        border: 1px solid #334155;
+        text-transform: none;
+        letter-spacing: normal;
+        opacity: 0;
+        transition: all 0.2s;
+        pointer-events: none;
+      }
+      .tooltip-content::after {
+        content: '';
+        position: absolute;
+        top: 100%;
+        left: 15px;
+        border-width: 6px;
+        border-style: solid;
+        border-color: #334155 transparent transparent transparent;
+      }
+      .tooltip-trigger:hover .tooltip-content {
+        visibility: visible;
+        opacity: 1;
+        transform: translateY(-4px);
+      }
     </style>
   </head>
   <body>
     <div id="sidebar">
       <h2>🗺️ RepoTour</h2>
       <p class="subtitle">Interactive codebase architecture mapper</p>
-      <input
-        type="text"
-        id="repoUrl"
-        value="https://github.com/expressjs/express"
-        placeholder="https://github.com/user/repo"
-      />
+      <div style="display:flex; gap: 5px; margin-bottom: 10px;">
+        <input
+          type="text"
+          id="repoUrl"
+          value="https://github.com/expressjs/express"
+          placeholder="https://github.com/user/repo"
+          style="flex: 1;"
+        />
+        <button id="clearCacheBtn" class="secondary-btn" style="width: auto; padding: 0 10px; margin: 0; font-size: 11px;" title="Clear Cache / New Repo">✕ Clear</button>
+      </div>
       <button id="analyzeBtn">🔍 Generate Architecture Map</button>
       <button id="healthScanBtn" class="secondary-btn">
         🏥 Health Scan Dashboard
@@ -1004,7 +1052,15 @@
           <div class="file-path" id="panel-filepath">-</div>
         </div>
         <div class="section">
-          <div class="section-title">COMPLEXITY SCORE</div>
+          <div class="section-title tooltip-trigger">
+            COMPLEXITY SCORE
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-left: 4px; opacity: 0.7; cursor: help;">
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+            <div class="tooltip-content">Based on Cyclomatic Complexity: Calculates the number of branches (if/else), loops, nested callbacks, and total lines of code to determine maintainability.</div>
+          </div>
           <div class="complexity-bar-container">
             <div class="complexity-score-text" id="panel-complexity-text">
               0/100 (Low)
@@ -1732,6 +1788,36 @@
         return "score-high";
       }
 
+      // 1. Persistent State (Session Storage)
+      document.addEventListener("DOMContentLoaded", () => {
+        const cachedData = sessionStorage.getItem("repoData");
+        if (cachedData) {
+          try {
+            const data = JSON.parse(cachedData);
+            currentData = data;
+            currentRepoPath = data.repoPath;
+            
+            nodeCountEl.textContent = data.nodes.length;
+            linkCountEl.textContent = data.links.length;
+            stats.classList.add("visible");
+            
+            detailContent.innerHTML = `<span class="success-message">✅ Loaded from Cache!</span><br><br>Rendered <b>${data.nodes.length}</b> files and <b>${data.links.length}</b> internal connections.<br><br>💡 <i>Click any node to view details. Drag nodes to reposition. Scroll to zoom.</i>`;
+            renderGraph(data.nodes, data.links);
+            updateStatsBar(data.nodes, data.links);
+          } catch (e) {
+            console.error("Failed to parse cached data:", e);
+          }
+        }
+      });
+
+      document.getElementById("clearCacheBtn").addEventListener("click", () => {
+        sessionStorage.removeItem("repoData");
+        svg.selectAll("*").remove();
+        stats.classList.remove("visible");
+        detailContent.innerHTML = "Cache cleared. Ready for a new repository.";
+        document.getElementById("repoUrl").value = "";
+      });
+
       btn.addEventListener("click", async () => {
         const url = document.getElementById("repoUrl").value.trim();
         if (!url) {
@@ -1763,6 +1849,9 @@
           const data = await response.json();
           currentData = data;
           currentRepoPath = data.repoPath; // Store repo path for AI analysis
+
+          // Save to session storage
+          sessionStorage.setItem("repoData", JSON.stringify(data));
 
           nodeCountEl.textContent = data.nodes.length;
           linkCountEl.textContent = data.links.length;
@@ -1948,14 +2037,39 @@
           .join("g")
           .call(drag(simulation));
 
+        // 2. Distinct Node Shapes (Visual Hierarchy)
+        nodeGroup.each(function(d) {
+          const isRoot = d.depth === 0;
+          const r = getNodeRadius(d);
+          const el = d3.select(this);
+          
+          if (isRoot) {
+            // Render root nodes as a square (rect)
+            const size = r * 1.8;
+            el.append("rect")
+              .attr("class", "node root-node")
+              .attr("x", -size / 2)
+              .attr("y", -size / 2)
+              .attr("width", size)
+              .attr("height", size)
+              .attr("rx", 3) // Slightly rounded corners
+              .attr("fill", getNodeColor(d))
+              .attr("stroke", getDirectoryColor(d))
+              .attr("stroke-width", 2.5)
+              .attr("filter", getGlowFilter(d));
+          } else {
+            // Render standard files as a circle
+            el.append("circle")
+              .attr("class", "node")
+              .attr("r", r)
+              .attr("fill", getNodeColor(d))
+              .attr("stroke", getDirectoryColor(d))
+              .attr("stroke-width", 2.5)
+              .attr("filter", getGlowFilter(d));
+          }
+        });
+
         nodeGroup
-          .append("circle")
-          .attr("class", "node")
-          .attr("r", (d) => getNodeRadius(d))
-          .attr("fill", (d) => getNodeColor(d))
-          .attr("stroke", (d) => getDirectoryColor(d))
-          .attr("stroke-width", 2.5)
-          .attr("filter", (d) => getGlowFilter(d))
           .on("mouseover", (event, d) => {
             const score = d.complexityScore || 0;
 
@@ -2040,7 +2154,7 @@
             d.label.length > 15 ? d.label.substring(0, 12) + "..." : d.label,
           );
 
-        // ── Convex Hull Bounding Boxes ───────────────────────────────────
+        // ── Structured Directory Boxes ───────────────────────────────────
         // Group nodes by top-level directory
         const dirGroups = d3.group(nodes, (n) => n.id.split("/")[0]);
 
@@ -2049,39 +2163,44 @@
           .insert("g", ":first-child")
           .attr("class", "hull-layer");
 
-        // One <g> per directory: holds a <path> (hull fill) + <text> (label)
+        // One <g> per directory: holds a <rect> (box fill), <rect> (header bg), + <text> (label)
         const hullGroups = hullLayer
           .selectAll(".hull-group")
           .data(Array.from(dirGroups.keys()))
           .join("g")
           .attr("class", "hull-group");
 
-        // Path element – shape drawn each tick
+        // Box element
         hullGroups
-          .append("path")
+          .append("rect")
           .attr("class", "hull-path")
           .style("fill", (dir) => getDirectoryColor({ id: dir + "/_.js" }))
-          .style("fill-opacity", 0.08)
+          .style("fill-opacity", 0.05)
           .style("stroke", (dir) => getDirectoryColor({ id: dir + "/_.js" }))
-          .style("stroke-opacity", 0.45)
+          .style("stroke-opacity", 0.3)
           .style("stroke-width", 1.5)
-          .style("stroke-dasharray", "5 4")
-          .style("stroke-linejoin", "round")
+          .style("stroke-dasharray", "4 4")
+          .style("rx", 6)
           .style("pointer-events", "none");
 
-        // Label element – positioned at top-left hull vertex each tick
+        // Header Background
+        hullGroups
+          .append("rect")
+          .attr("class", "hull-header-bg")
+          .style("fill", (dir) => getDirectoryColor({ id: dir + "/_.js" }))
+          .style("fill-opacity", 0.2)
+          .style("pointer-events", "none");
+
+        // Label element
         hullGroups
           .append("text")
           .attr("class", "hull-label")
-          .text((dir) => dir.toUpperCase())
-          .style("font-size", "9px")
-          .style("font-family", "'Inter', monospace")
+          .text((dir) => "📁 " + dir.toUpperCase())
+          .style("font-size", "10px")
+          .style("font-family", "'Inter', sans-serif")
           .style("font-weight", "600")
-          .style("letter-spacing", "0.08em")
           .style("fill", (dir) => getDirectoryColor({ id: dir + "/_.js" }))
-          .style("fill-opacity", 0.6)
-          .style("pointer-events", "none")
-          .style("text-transform", "uppercase");
+          .style("pointer-events", "none");
 
         simulation.on("tick", () => {
           link
@@ -2091,58 +2210,46 @@
             .attr("y2", (d) => d.target.y);
           nodeGroup.attr("transform", (d) => `translate(${d.x},${d.y})`);
 
-          // Redraw convex hulls every tick so they track live node positions
+          // Redraw bounding boxes every tick so they track live node positions
           hullGroups.each(function (dir) {
             const groupNodes = dirGroups.get(dir) || [];
-            // Need at least 3 points for a hull; pad duplicates if fewer
-            let pts = groupNodes
-              .filter((n) => n.x != null && n.y != null)
-              .map((n) => [n.x, n.y]);
+            let validNodes = groupNodes.filter((n) => n.x != null && n.y != null);
+            if (validNodes.length === 0) return;
 
-            const pad =
-              getNodeRadius(groupNodes[0] || { complexityScore: 0 }) + 22;
+            const pad = 24; // Base padding
+            
+            let minX = d3.min(validNodes, n => n.x - getNodeRadius(n)) - pad;
+            let maxX = d3.max(validNodes, n => n.x + getNodeRadius(n)) + pad;
+            let minY = d3.min(validNodes, n => n.y - getNodeRadius(n)) - pad;
+            let maxY = d3.max(validNodes, n => n.y + getNodeRadius(n)) + pad;
+            
+            // Header height
+            const headerHeight = 20;
+            // Expand top for header
+            minY -= headerHeight;
 
-            if (pts.length === 0) return;
-            if (pts.length === 1)
-              pts = [
-                [pts[0][0] - pad, pts[0][1] - pad],
-                [pts[0][0] + pad, pts[0][1] - pad],
-                [pts[0][0] + pad, pts[0][1] + pad],
-                [pts[0][0] - pad, pts[0][1] + pad],
-              ];
-            if (pts.length === 2)
-              pts = [
-                [pts[0][0] - 1, pts[0][1] - 1],
-                pts[0],
-                [pts[1][0] + 1, pts[1][1] + 1],
-                pts[1],
-              ];
+            const w = Math.max(0, maxX - minX);
+            const h = Math.max(0, maxY - minY);
 
-            // Expand hull outward by `pad` pixels for breathing room
-            const hull = d3.polygonHull(pts);
-            if (!hull) return;
+            const group = d3.select(this);
 
-            // Centroid for outward expansion
-            const cx = d3.mean(hull, (p) => p[0]);
-            const cy = d3.mean(hull, (p) => p[1]);
-            const expanded = hull.map(([hx, hy]) => {
-              const dx = hx - cx,
-                dy = hy - cy;
-              const len = Math.sqrt(dx * dx + dy * dy) || 1;
-              return [hx + (dx / len) * pad, hy + (dy / len) * pad];
-            });
+            group.select(".hull-path")
+                 .attr("x", minX)
+                 .attr("y", minY)
+                 .attr("width", w)
+                 .attr("height", h);
 
-            const pathStr =
-              "M" + expanded.map((p) => p.join(",")).join("L") + "Z";
+            group.select(".hull-header-bg")
+                 .attr("x", minX)
+                 .attr("y", minY)
+                 .attr("width", w)
+                 .attr("height", headerHeight)
+                 .attr("rx", 6) // Matches main rect rx
+                 .style("clip-path", `inset(0px 0px -6px 0px round 6px)`); // Only round top corners visually if possible, or just rx=6 is fine since it's overlaid
 
-            d3.select(this).select(".hull-path").attr("d", pathStr);
-
-            // Place label at the topmost (min-Y) expanded vertex
-            const top = expanded.reduce((a, b) => (b[1] < a[1] ? b : a));
-            d3.select(this)
-              .select(".hull-label")
-              .attr("x", top[0] + 4)
-              .attr("y", top[1] - 5);
+            group.select(".hull-label")
+                 .attr("x", minX + 8)
+                 .attr("y", minY + 14);
           });
         });
       }
