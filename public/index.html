@@ -338,17 +338,23 @@
       #complexity-tooltip .breakdown-item {
         margin: 3px 0;
       }
-      /* Complexity Legend */
-      #complexity-legend {
+      .top-right-controls {
         position: absolute;
         top: 20px;
         right: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 15px;
+        z-index: 1000;
+      }
+      /* Complexity Legend */
+      #complexity-legend {
         background: rgba(22, 27, 34, 0.95);
         border: 1px solid #30363d;
         border-radius: 6px;
         padding: 12px;
         font-size: 11px;
-        z-index: 100;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
       }
       #complexity-legend .legend-title {
@@ -713,9 +719,6 @@
         opacity: 0.08;
       }
       #blast-badge {
-        position: absolute;
-        top: 80px;
-        right: 20px;
         background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
         color: white;
         padding: 12px 20px;
@@ -724,7 +727,6 @@
         font-size: 14px;
         box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
         display: none;
-        z-index: 100;
       }
       /* Calculate Blast Radius button */
       .blast-calc-btn {
@@ -853,9 +855,6 @@
       }
       /* Complexity Legend - Top Right */
       #complexity-legend {
-        position: fixed;
-        top: 20px;
-        right: 20px;
         background: rgba(15, 23, 42, 0.85);
         border: 1px solid #1e293b;
         border-radius: 10px;
@@ -863,7 +862,6 @@
         color: #94a3b8;
         font-size: 13px;
         backdrop-filter: blur(8px);
-        z-index: 150;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
       }
       #complexity-legend .legend-title {
@@ -940,8 +938,9 @@
         font-size: 11px;
         font-weight: 400;
         white-space: normal;
-        width: 240px;
-        z-index: 200;
+        width: max-content;
+        max-width: 220px;
+        z-index: 1000;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
         border: 1px solid #334155;
         text-transform: none;
@@ -958,6 +957,16 @@
         border-width: 6px;
         border-style: solid;
         border-color: #334155 transparent transparent transparent;
+      }
+      
+      /* Right Edge Modifier for Right Column Tooltips */
+      .tooltip-right-edge .tooltip-content {
+        left: auto;
+        right: 0;
+      }
+      .tooltip-right-edge .tooltip-content::after {
+        left: auto;
+        right: 15px;
       }
       .tooltip-trigger:hover .tooltip-content {
         visibility: visible;
@@ -1031,16 +1040,19 @@
         <div class="loader-spinner"></div>
         <div>🔄 Cloning & Analyzing Repository...</div>
       </div>
-      <div id="complexity-legend">
-        <div class="legend-title">Complexity</div>
-        <div class="legend-item">
-          <span class="dot green"></span> Low (0–33)
-        </div>
-        <div class="legend-item">
-          <span class="dot amber"></span> Medium (34–66)
-        </div>
-        <div class="legend-item">
-          <span class="dot red"></span> High (67–100)
+      <div class="top-right-controls">
+        <div id="blast-badge"></div>
+        <div id="complexity-legend">
+          <div class="legend-title">Complexity</div>
+          <div class="legend-item">
+            <span class="dot green"></span> Low (0–33)
+          </div>
+          <div class="legend-item">
+            <span class="dot amber"></span> Medium (34–66)
+          </div>
+          <div class="legend-item">
+            <span class="dot red"></span> High (67–100)
+          </div>
         </div>
       </div>
       <div id="node-tooltip"></div>
@@ -1059,21 +1071,29 @@
           <div class="file-path" id="panel-filepath">-</div>
         </div>
         <div class="section">
-          <div class="section-title tooltip-trigger">
+          <div
+            class="section-title tooltip-trigger"
+            style="
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              position: relative;
+            "
+          >
             COMPLEXITY SCORE
             <svg
               viewBox="0 0 24 24"
-              width="16"
-              height="16"
               fill="none"
               stroke="currentColor"
               stroke-width="2"
               style="
-                display: inline-block;
-                vertical-align: text-bottom;
-                margin-left: 4px;
+                width: 16px !important;
+                height: 16px !important;
+                min-width: 16px !important;
+                flex-shrink: 0;
                 opacity: 0.7;
                 cursor: help;
+                display: block;
               "
             >
               <circle cx="12" cy="12" r="10"></circle>
@@ -1105,15 +1125,40 @@
           <div class="stat-cards">
             <div class="stat-card">
               <div class="stat-card-value" id="panel-branches">0</div>
-              <div class="stat-card-label">Branches</div>
+              <div class="stat-card-label tooltip-trigger" style="display: flex; align-items: center; justify-content: center; gap: 6px; position: relative;">
+                Branches
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px !important; height: 14px !important; min-width: 14px !important; flex-shrink: 0; opacity: 0.7; cursor: help; display: block;">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                  <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                <div class="tooltip-content">The total number of decision points (if/else, switch, loops). Higher numbers require more unit tests.</div>
+              </div>
             </div>
             <div class="stat-card">
               <div class="stat-card-value" id="panel-nesting">0</div>
-              <div class="stat-card-label">Max Nesting</div>
+              <div class="stat-card-label tooltip-trigger tooltip-right-edge" style="display: flex; align-items: center; justify-content: center; gap: 6px; position: relative;">
+                Max Nesting
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px !important; height: 14px !important; min-width: 14px !important; flex-shrink: 0; opacity: 0.7; cursor: help; display: block;">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                  <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                <div class="tooltip-content">The deepest level of nested blocks or callbacks. Deep nesting drastically reduces code readability.</div>
+              </div>
             </div>
             <div class="stat-card">
               <div class="stat-card-value" id="panel-todos">0</div>
-              <div class="stat-card-label">TODOs</div>
+              <div class="stat-card-label tooltip-trigger" style="display: flex; align-items: center; justify-content: center; gap: 6px; position: relative;">
+                TODOs
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px !important; height: 14px !important; min-width: 14px !important; flex-shrink: 0; opacity: 0.7; cursor: help; display: block;">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                  <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                <div class="tooltip-content">
+Pending technical issues marked with // TODO or // FIXME. High numbers indicate incomplete features or areas requiring future refactoring.</div>
+              </div>
             </div>
             <div class="stat-card">
               <div class="stat-card-value" id="panel-lines">0</div>
@@ -1140,16 +1185,37 @@
         </button>
         <div id="ai-summary-section"></div>
         <!-- Blast Radius trigger (shown when a node is selected) -->
-        <button
-          class="blast-calc-btn"
-          id="blast-calc-btn"
-          style="display: none"
-        >
-          🔥 Calculate Blast Radius
-        </button>
+<button
+  class="blast-calc-btn"
+  id="blast-calc-btn"
+  style="display: none; position: relative;"
+>
+  <div style="display: flex; align-items: center; justify-content: center; gap: 6px;">
+    🔥 Calculate Blast Radius
+    
+    <span class="tooltip-trigger tooltip-right-edge" style="display: flex; align-items: center; position: relative;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px !important; height: 14px !important; min-width: 14px !important; flex-shrink: 0; opacity: 0.7; cursor: help; display: block;">
+        <circle cx="12" cy="12" r="10"></circle>
+        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+      </svg>
+      
+      <div class="tooltip-content">Highlights all downstream files that depend on this module. Modifying this file may break these dependencies.</div>
+    </span>
+
+  </div>
+</button>
         <!-- Refactor command panel (shown after blast radius is calculated) -->
         <div id="refactor-panel">
-          <div class="rp-title">🔥 Blast Radius — Refactor Command</div>
+          <div class="rp-title tooltip-trigger" style="display: flex; align-items: center; justify-content: center; gap: 6px; position: relative;">
+            🔥 Blast Radius — Refactor Command
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px !important; height: 14px !important; min-width: 14px !important; flex-shrink: 0; opacity: 0.7; cursor: help; display: block;">
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+            <div class="tooltip-content">Highlights all downstream files that depend on this module. Modifying this file may break these dependencies.</div>
+          </div>
           <div class="rp-file-list" id="rp-file-list"></div>
           <textarea
             id="rp-instruction"
@@ -1169,7 +1235,6 @@
     <div id="context-menu">
       <div class="menu-item" id="show-blast-radius">🔥 Show Blast Radius</div>
     </div>
-    <div id="blast-badge"></div>
     <div id="stats-bar">
       <span id="stat-nodes"><span class="stat-value">0</span> files</span>
       <span class="divider">·</span>

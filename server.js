@@ -789,32 +789,32 @@ ${fileContent.substring(0, 8000)}`;
 // POST /api/analyze-file  (Gemini — deeper analysis: aiSummary + complexityReason)
 // ─────────────────────────────────────────────────────────────────────────────
 app.post("/api/analyze-file", async (req, res) => {
-  const { repoPath, filePath } = req.body;
-  if (!repoPath || !filePath)
+  const { repoUrl, filePath } = req.body;
+  if (!repoUrl || !filePath)
     return res
       .status(400)
-      .json({ error: "Both repoPath and filePath are required." });
-
-  const safeRepo = path.resolve(repoPath);
-  const safeTarget = path.resolve(safeRepo, filePath);
-  if (!safeTarget.startsWith(safeRepo + path.sep) && safeTarget !== safeRepo)
-    return res
-      .status(403)
-      .json({ error: "Access denied: path traversal detected." });
+      .json({ error: "Both repoUrl and filePath are required." });
 
   if (!process.env.GEMINI_API_KEY)
     return res.status(503).json({ error: "GEMINI_API_KEY is not configured." });
 
   try {
-    if (!fs.existsSync(safeTarget))
-      return res.status(404).json({ error: `File not found: ${filePath}` });
-    const stat = fs.statSync(safeTarget);
-    if (stat.size > 50 * 1024)
-      return res.status(413).json({
-        error: `File too large (${(stat.size / 1024).toFixed(1)} KB). Limit is 50 KB.`,
-      });
+    const urlObj = new URL(repoUrl);
+    const pathParts = urlObj.pathname.split("/").filter(Boolean);
+    if (pathParts.length < 2) {
+      return res.status(400).json({ error: "Invalid GitHub repository URL format." });
+    }
+    const owner = pathParts[0];
+    const repo = pathParts[1];
+    
+    const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/HEAD/${filePath}`;
+    
+    const githubRes = await fetch(rawUrl);
+    if (!githubRes.ok) {
+      return res.status(githubRes.status).json({ error: `Failed to fetch file from GitHub: ${githubRes.statusText}` });
+    }
+    const rawContent = await githubRes.text();
 
-    const rawContent = fs.readFileSync(safeTarget, "utf-8");
     const prompt =
       "You are an expert software architect. Return ONLY a JSON object with exactly two keys:\n" +
       "'aiSummary' (2-sentence explanation of what this file does) and\n" +
