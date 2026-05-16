@@ -18,11 +18,13 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@google/genai": "^2.3.0",
+    "@google/generative-ai": "^0.21.0",
     "@octokit/rest": "^22.0.1",
+    "@openrouter/sdk": "^0.12.35",
     "dotenv": "^16.0.3",
     "express": "^4.22.2",
     "express-session": "^1.19.0",
+    "openai": "^6.38.0",
     "passport": "^0.7.0",
     "passport-github2": "^0.1.12"
   },
