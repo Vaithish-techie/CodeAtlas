@@ -3,981 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>RepoTour | AI Architecture Mapper</title>
+    <title>CodeAtlas | AI Architecture Mapper</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
-    <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
-      body {
-        margin: 0;
-        font-family: "Inter", system-ui, sans-serif;
-        display: flex;
-        height: 100vh;
-        background: #080f1e;
-        color: #c9d1d9;
-        overflow: hidden;
-      }
-      #sidebar {
-        width: 320px;
-        background: #0d1526;
-        padding: 25px;
-        display: flex;
-        flex-direction: column;
-        gap: 15px;
-        border-right: 1px solid #1e293b;
-        z-index: 10;
-        box-shadow: 2px 0 20px rgba(0, 0, 0, 0.6);
-        overflow-y: auto;
-      }
-      h2 {
-        margin: 0;
-        color: #58a6ff;
-        font-size: 24px;
-      }
-      .subtitle {
-        font-size: 12px;
-        color: #8b949e;
-        margin: -10px 0 10px 0;
-      }
-      input {
-        padding: 12px;
-        background: #080f1e;
-        border: 1px solid #1e293b;
-        color: white;
-        border-radius: 6px;
-        font-size: 14px;
-        transition: border-color 0.2s;
-      }
-      input:focus {
-        outline: none;
-        border-color: #6366f1;
-        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
-      }
-      input::placeholder {
-        color: #4a5568;
-      }
-      button {
-        padding: 12px;
-        background: linear-gradient(135deg, #1e3a5f 0%, #1a3050 100%);
-        color: white;
-        border: 1px solid #2d4a7a;
-        border-radius: 8px;
-        cursor: pointer;
-        font-weight: 600;
-        font-size: 14px;
-        transition: all 0.2s ease;
-      }
-      button:hover {
-        background: linear-gradient(135deg, #254a80 0%, #1e3a6e 100%);
-        border-color: #4d7abf;
-        box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
-      }
-      button:disabled {
-        background: #1a2035;
-        color: #4a5568;
-        cursor: not-allowed;
-        border-color: #1e293b;
-        box-shadow: none;
-      }
-      .secondary-btn {
-        background: transparent;
-        color: #7aa2d4;
-        border: 1px solid #1e293b;
-        margin-top: 10px;
-      }
-      .secondary-btn:hover {
-        background: rgba(99, 102, 241, 0.08);
-        border-color: #6366f1;
-        color: #a5b4fc;
-      }
-      #details {
-        margin-top: 20px;
-        padding: 15px;
-        background: #080f1e;
-        border-radius: 8px;
-        border: 1px solid #1e293b;
-        font-size: 13px;
-        line-height: 1.6;
-        word-wrap: break-word;
-        max-height: calc(100vh - 300px);
-        overflow-y: auto;
-      }
-      .detail-title {
-        color: #58a6ff;
-        font-weight: bold;
-        margin-bottom: 8px;
-        display: block;
-        border-bottom: 1px solid #30363d;
-        padding-bottom: 5px;
-      }
-      #detail-content b {
-        color: #58a6ff;
-      }
-      #graph-container {
-        flex: 1;
-        position: relative;
-        width: 100vw;
-        height: 100vh;
-      }
-      svg {
-        width: 100%;
-        height: 100%;
-        cursor: grab;
-        background: radial-gradient(
-          ellipse at center,
-          #0d1a35 0%,
-          #080f1e 100%
-        );
-      }
-      svg:active {
-        cursor: grabbing;
-      }
-      .node {
-        cursor: pointer;
-        transition:
-          fill 0.2s,
-          transform 0.2s;
-      }
-      .node:hover {
-        transform: scale(1.1);
-      }
-      .node.selected {
-        stroke: #58a6ff;
-        stroke-width: 3px;
-      }
-      .link {
-        stroke: #334155;
-        stroke-opacity: 0.6;
-        stroke-width: 1px;
-      }
-      .link.highlighted {
-        stroke: #6366f1;
-        stroke-opacity: 1;
-        stroke-width: 2px;
-      }
-      .link.dimmed {
-        stroke-opacity: 0.05;
-      }
-      .node-label {
-        font-size: 11px;
-        fill: #e2e8f0;
-        pointer-events: none;
-        text-anchor: middle;
-        font-family: "Inter", system-ui, sans-serif;
-        background: rgba(0, 0, 0, 0.6);
-        padding: 2px 6px;
-        border-radius: 4px;
-      }
-      .hub-label {
-        font-weight: 600;
-      }
-      #node-tooltip {
-        position: absolute;
-        display: none;
-        background: rgba(15, 23, 42, 0.95);
-        border: 1px solid #334155;
-        border-radius: 8px;
-        padding: 10px 14px;
-        font-size: 12px;
-        pointer-events: none;
-        z-index: 2500;
-        color: #e2e8f0;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-        backdrop-filter: blur(8px);
-      }
-      #node-tooltip .tooltip-name {
-        font-weight: 600;
-        margin-bottom: 4px;
-        color: #fff;
-      }
-      #node-tooltip .tooltip-complexity {
-        font-size: 11px;
-        color: #94a3b8;
-      }
-      #loader {
-        display: none;
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: rgba(22, 27, 34, 0.95);
-        padding: 30px 50px;
-        border-radius: 8px;
-        border: 1px solid #30363d;
-        font-weight: bold;
-        color: #58a6ff;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
-        text-align: center;
-        z-index: 1000;
-      }
-      .loader-spinner {
-        width: 40px;
-        height: 40px;
-        margin: 0 auto 15px;
-        border: 4px solid #30363d;
-        border-top: 4px solid #58a6ff;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-      }
-      @keyframes spin {
-        0% {
-          transform: rotate(0deg);
-        }
-        100% {
-          transform: rotate(360deg);
-        }
-      }
-      .legend {
-        margin-top: 15px;
-        padding: 10px;
-        background: #0d1117;
-        border-radius: 6px;
-        border: 1px solid #30363d;
-        font-size: 11px;
-      }
-      .legend-title {
-        color: #58a6ff;
-        font-weight: bold;
-        margin-bottom: 8px;
-      }
-      .legend-item {
-        display: flex;
-        align-items: center;
-        margin: 5px 0;
-        color: #8b949e;
-      }
-      .legend-color {
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        margin-right: 8px;
-        border: 1px solid #30363d;
-      }
-      #stats {
-        padding: 10px;
-        background: #0d1117;
-        border-radius: 6px;
-        border: 1px solid #30363d;
-        font-size: 12px;
-        color: #8b949e;
-        display: none;
-      }
-      #stats.visible {
-        display: block;
-      }
-      .stat-item {
-        margin: 5px 0;
-      }
-      .stat-value {
-        color: #58a6ff;
-        font-weight: bold;
-      }
-      ::-webkit-scrollbar {
-        width: 8px;
-      }
-      ::-webkit-scrollbar-track {
-        background: #0d1117;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #30363d;
-        border-radius: 4px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #484f58;
-      }
-      .error-message {
-        color: #ff7b72;
-      }
-      .success-message {
-        color: #3fb950;
-      }
-      /* Complexity Tooltip */
-      #complexity-tooltip {
-        position: absolute;
-        display: none;
-        background: rgba(22, 27, 34, 0.98);
-        border: 1px solid #30363d;
-        border-radius: 6px;
-        padding: 12px;
-        font-size: 12px;
-        pointer-events: none;
-        z-index: 1000;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-        max-width: 280px;
-      }
-      #complexity-tooltip .tooltip-filename {
-        color: #58a6ff;
-        font-weight: bold;
-        margin-bottom: 8px;
-        border-bottom: 1px solid #30363d;
-        padding-bottom: 5px;
-      }
-      #complexity-tooltip .tooltip-score {
-        font-size: 14px;
-        font-weight: bold;
-        margin: 8px 0;
-      }
-      #complexity-tooltip .score-low {
-        color: #22c55e;
-      }
-      #complexity-tooltip .score-medium {
-        color: #f59e0b;
-      }
-      #complexity-tooltip .score-high {
-        color: #ef4444;
-      }
-      #complexity-tooltip .tooltip-breakdown {
-        font-size: 11px;
-        color: #8b949e;
-        margin-top: 8px;
-      }
-      #complexity-tooltip .breakdown-item {
-        margin: 3px 0;
-      }
-      .top-right-controls {
-        position: absolute;
-        top: 20px;
-        right: 20px;
-        display: flex;
-        flex-direction: column;
-        align-items: flex-end;
-        gap: 15px;
-        z-index: 1000;
-      }
-      /* Complexity Legend */
-      #complexity-legend {
-        background: rgba(22, 27, 34, 0.95);
-        border: 1px solid #30363d;
-        border-radius: 6px;
-        padding: 12px;
-        font-size: 11px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-      }
-      #complexity-legend .legend-title {
-        color: #58a6ff;
-        font-weight: bold;
-        margin-bottom: 8px;
-      }
-      #complexity-legend .legend-item {
-        display: flex;
-        align-items: center;
-        margin: 5px 0;
-        color: #8b949e;
-      }
-      #complexity-legend .legend-color {
-        width: 16px;
-        height: 16px;
-        border-radius: 50%;
-        margin-right: 8px;
-        border: 1px solid #30363d;
-      }
-      /* File Intelligence Panel (Right Sidebar) */
-      #intelligence-panel {
-        position: fixed;
-        right: -360px;
-        top: 0;
-        width: 340px;
-        height: 100vh;
-        background: #0a1628;
-        border-left: 1px solid #1e293b;
-        box-shadow: -4px 0 30px rgba(0, 0, 0, 0.7);
-        z-index: 1000;
-        transition: right 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-        overflow-y: auto;
-        padding: 20px;
-      }
-      #intelligence-panel.open {
-        right: 0;
-      }
-      #intelligence-panel .panel-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 20px;
-        padding-bottom: 15px;
-        border-bottom: 1px solid #1e293b;
-      }
-      #intelligence-panel .panel-title {
-        color: #7aa2d4;
-        font-size: 16px;
-        font-weight: 700;
-        letter-spacing: 0.3px;
-      }
-      #intelligence-panel .close-btn {
-        background: none;
-        border: 1px solid #1e293b;
-        color: #64748b;
-        font-size: 20px;
-        cursor: pointer;
-        padding: 0;
-        width: 30px;
-        height: 30px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 6px;
-        transition: all 0.15s;
-      }
-      #intelligence-panel .close-btn:hover {
-        background: #1e293b;
-        color: #e2e8f0;
-        border-color: #334155;
-      }
-      #intelligence-panel .section {
-        margin-bottom: 18px;
-      }
-      #intelligence-panel .section-title {
-        color: #4a6080;
-        font-size: 10px;
-        text-transform: uppercase;
-        font-weight: 700;
-        margin-bottom: 10px;
-        letter-spacing: 1px;
-      }
-      #intelligence-panel .file-name {
-        color: #e2e8f0;
-        font-size: 15px;
-        font-weight: 700;
-        margin-bottom: 5px;
-        word-break: break-all;
-      }
-      #intelligence-panel .file-path {
-        color: #4a6080;
-        font-size: 11px;
-        font-family: monospace;
-        margin-bottom: 15px;
-        word-break: break-all;
-      }
-      #intelligence-panel .complexity-bar-container {
-        background: #080f1e;
-        border: 1px solid #1e293b;
-        border-radius: 8px;
-        padding: 12px;
-        margin-bottom: 10px;
-      }
-      #intelligence-panel .complexity-score-text {
-        font-size: 14px;
-        font-weight: 700;
-        margin-bottom: 8px;
-      }
-      #intelligence-panel .progress-bar {
-        width: 100%;
-        height: 6px;
-        background: #1e293b;
-        border-radius: 4px;
-        overflow: hidden;
-      }
-      #intelligence-panel .progress-fill {
-        height: 100%;
-        transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-        border-radius: 4px;
-      }
-      /* Complexity reason subtext */
-      #complexity-reason-container {
-        display: none;
-        font-size: 12px;
-        font-style: italic;
-        color: #4a6080;
-        margin-top: 8px;
-        line-height: 1.5;
-        opacity: 0;
-        transition: opacity 0.4s ease;
-      }
-      #complexity-reason-container.visible {
-        display: block;
-        opacity: 1;
-      }
-      #intelligence-panel .stat-cards {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 8px;
-        margin-bottom: 15px;
-      }
-      #intelligence-panel .stat-card {
-        background: #080f1e;
-        border: 1px solid #1e293b;
-        border-radius: 8px;
-        padding: 10px;
-        text-align: center;
-        transition: border-color 0.2s;
-      }
-      #intelligence-panel .stat-card:hover {
-        border-color: #2d4a7a;
-      }
-      #intelligence-panel .stat-card-value {
-        color: #7aa2d4;
-        font-size: 18px;
-        font-weight: 700;
-      }
-      #intelligence-panel .stat-card-label {
-        color: #4a6080;
-        font-size: 10px;
-        margin-top: 4px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      }
-      #intelligence-panel .dependency-list {
-        background: #080f1e;
-        border: 1px solid #1e293b;
-        border-radius: 8px;
-        padding: 10px;
-        max-height: 150px;
-        overflow-y: auto;
-        font-size: 11px;
-        font-family: monospace;
-      }
-      #intelligence-panel .dependency-item {
-        color: #64748b;
-        padding: 4px 0;
-        border-bottom: 1px solid #0f1d35;
-      }
-      #intelligence-panel .dependency-item:last-child {
-        border-bottom: none;
-      }
-      #intelligence-panel .dependency-item:hover {
-        color: #7aa2d4;
-      }
-      #intelligence-panel .ai-button {
-        width: 100%;
-        padding: 13px;
-        background: linear-gradient(135deg, #4f46e5 0%, #2563eb 100%);
-        color: white;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        font-weight: 700;
-        font-size: 14px;
-        letter-spacing: 0.3px;
-        transition: all 0.25s ease;
-        margin-top: 15px;
-        position: relative;
-        overflow: hidden;
-      }
-      #intelligence-panel .ai-button::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(135deg, #6366f1 0%, #3b82f6 100%);
-        opacity: 0;
-        transition: opacity 0.25s;
-      }
-      #intelligence-panel .ai-button:hover::before {
-        opacity: 1;
-      }
-      #intelligence-panel .ai-button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(79, 70, 229, 0.5);
-      }
-      #intelligence-panel .ai-button span {
-        position: relative;
-        z-index: 1;
-      }
-      #intelligence-panel .ai-button:disabled {
-        background: linear-gradient(135deg, #4f46e5 0%, #2563eb 100%);
-        opacity: 0.75;
-        cursor: not-allowed;
-        transform: none;
-        box-shadow: none;
-      }
-      #intelligence-panel .ai-button.loading {
-        animation: btn-pulse 1.4s ease-in-out infinite;
-      }
-      @keyframes btn-pulse {
-        0%,
-        100% {
-          opacity: 1;
-        }
-        50% {
-          opacity: 0.7;
-        }
-      }
-      #intelligence-panel .loading-spinner {
-        display: inline-block;
-        width: 13px;
-        height: 13px;
-        border: 2px solid rgba(255, 255, 255, 0.3);
-        border-top: 2px solid #fff;
-        border-radius: 50%;
-        animation: spin 0.75s linear infinite;
-        margin-right: 8px;
-        vertical-align: middle;
-      }
-      /* AI Summary Output Box */
-      #ai-summary-section {
-        display: none;
-        margin-top: 15px;
-        opacity: 0;
-        transform: translateY(6px);
-        transition:
-          opacity 0.4s ease,
-          transform 0.4s ease;
-      }
-      #ai-summary-section.visible {
-        opacity: 1;
-        transform: translateY(0);
-      }
-      .ai-output-box {
-        background: #080f1e;
-        border-radius: 10px;
-        padding: 15px;
-        position: relative;
-        box-shadow: inset 0 1px 8px rgba(0, 0, 0, 0.5);
-      }
-      .ai-output-box::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        border-radius: 10px;
-        padding: 1px;
-        background: linear-gradient(135deg, #4f46e5, #2563eb, #7c3aed);
-        -webkit-mask:
-          linear-gradient(#fff 0 0) content-box,
-          linear-gradient(#fff 0 0);
-        -webkit-mask-composite: xor;
-        mask:
-          linear-gradient(#fff 0 0) content-box,
-          linear-gradient(#fff 0 0);
-        mask-composite: exclude;
-        pointer-events: none;
-      }
-      .ai-output-header {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        margin-bottom: 10px;
-        font-size: 11px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.8px;
-        color: #7aa2d4;
-      }
-      .ai-output-text {
-        color: #c9d1d9;
-        font-size: 13px;
-        line-height: 1.65;
-      }
-      /* Context Menu */
-      #context-menu {
-        position: absolute;
-        display: none;
-        background: #161b22;
-        border: 1px solid #30363d;
-        border-radius: 6px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-        z-index: 2000;
-        min-width: 180px;
-      }
-      #context-menu .menu-item {
-        padding: 10px 15px;
-        cursor: pointer;
-        color: #c9d1d9;
-        font-size: 13px;
-        border-bottom: 1px solid #21262d;
-      }
-      #context-menu .menu-item:last-child {
-        border-bottom: none;
-      }
-      #context-menu .menu-item:hover {
-        background: #21262d;
-        color: #58a6ff;
-      }
-      /* Blast Radius Effects */
-      .node.blast-root {
-        fill: #ef4444 !important;
-        filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.9)) !important;
-      }
-      .node.blast-dependent {
-        fill: #f97316 !important;
-        filter: drop-shadow(0 0 6px rgba(249, 115, 22, 0.8)) !important;
-        animation: blast-pulse 1.6s ease-in-out infinite;
-      }
-      @keyframes blast-pulse {
-        0%,
-        100% {
-          opacity: 1;
-          transform: scale(1);
-        }
-        50% {
-          opacity: 0.75;
-          transform: scale(1.12);
-        }
-      }
-      .node.blast-dimmed {
-        opacity: 0.12;
-        filter: none !important;
-      }
-      .link.blast-affected {
-        stroke: #ef4444 !important;
-        stroke-width: 2.5px !important;
-        stroke-opacity: 1 !important;
-      }
-      .link.blast-dimmed {
-        opacity: 0.08;
-      }
-      #blast-badge {
-        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-        color: white;
-        padding: 12px 20px;
-        border-radius: 8px;
-        font-weight: bold;
-        font-size: 14px;
-        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
-        display: none;
-      }
-      /* Calculate Blast Radius button */
-      .blast-calc-btn {
-        width: 100%;
-        margin-top: 12px;
-        padding: 11px;
-        background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%);
-        color: #fca5a5;
-        border: 1px solid #ef4444;
-        border-radius: 8px;
-        cursor: pointer;
-        font-weight: 700;
-        font-size: 13px;
-        letter-spacing: 0.3px;
-        transition: all 0.2s;
-      }
-      .blast-calc-btn:hover {
-        background: linear-gradient(135deg, #991b1b 0%, #b91c1c 100%);
-        color: #fff;
-        box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4);
-      }
-      /* Refactor command panel */
-      #blast-controls {
-        margin-top: 15px;
-        padding-top: 15px;
-        border-top: 1px solid #1e293b;
-        display: none;
-      }
-      #blast-controls button {
-        width: 100%;
-        margin-bottom: 8px;
-      }
-      #refactor-panel {
-        display: none;
-        margin-top: 14px;
-        animation: fadeSlide 0.3s ease;
-      }
-      @keyframes fadeSlide {
-        from {
-          opacity: 0;
-          transform: translateY(6px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-      #refactor-panel .rp-title {
-        font-size: 11px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.8px;
-        color: #ef4444;
-        margin-bottom: 10px;
-      }
-      #refactor-panel .rp-file-list {
-        background: #080f1e;
-        border: 1px solid #1e293b;
-        border-radius: 6px;
-        padding: 8px 10px;
-        max-height: 130px;
-        overflow-y: auto;
-        font-size: 11px;
-        font-family: monospace;
-        margin-bottom: 12px;
-      }
-      #refactor-panel .rp-file-item {
-        color: #f97316;
-        padding: 3px 0;
-        border-bottom: 1px solid #0f1d35;
-      }
-      #refactor-panel .rp-file-item:last-child {
-        border-bottom: none;
-      }
-      #refactor-panel .rp-file-item.root-file {
-        color: #ef4444;
-        font-weight: 700;
-      }
-      #refactor-panel textarea {
-        width: 100%;
-        min-height: 80px;
-        background: #080f1e;
-        border: 1px solid #1e293b;
-        border-radius: 6px;
-        color: #e2e8f0;
-        font-size: 12px;
-        padding: 10px;
-        resize: vertical;
-        font-family: "Inter", sans-serif;
-        transition: border-color 0.2s;
-        box-sizing: border-box;
-      }
-      #refactor-panel textarea:focus {
-        outline: none;
-        border-color: #ef4444;
-        box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15);
-      }
-      #refactor-panel .rp-submit {
-        width: 100%;
-        margin-top: 10px;
-        padding: 11px;
-        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-        color: white;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        font-weight: 700;
-        font-size: 13px;
-        transition: all 0.2s;
-      }
-      #refactor-panel .rp-submit:hover {
-        box-shadow: 0 4px 14px rgba(239, 68, 68, 0.45);
-        transform: translateY(-1px);
-      }
-      .clear-blast-btn {
-        background: transparent;
-        color: #64748b;
-        border: 1px solid #1e293b;
-        border-radius: 8px;
-        font-size: 12px;
-        padding: 8px;
-      }
-      .clear-blast-btn:hover {
-        background: #1e293b;
-        color: #e2e8f0;
-      }
-      /* Complexity Legend - Top Right */
-      #complexity-legend {
-        background: rgba(15, 23, 42, 0.85);
-        border: 1px solid #1e293b;
-        border-radius: 10px;
-        padding: 14px 18px;
-        color: #94a3b8;
-        font-size: 13px;
-        backdrop-filter: blur(8px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-      }
-      #complexity-legend .legend-title {
-        font-weight: 600;
-        color: #e2e8f0;
-        margin-bottom: 10px;
-        font-size: 14px;
-      }
-      #complexity-legend .legend-item {
-        display: flex;
-        align-items: center;
-        margin: 6px 0;
-        font-size: 12px;
-      }
-      #complexity-legend .dot {
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        margin-right: 8px;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-      }
-      #complexity-legend .dot.green {
-        background: #22c55e;
-      }
-      #complexity-legend .dot.amber {
-        background: #f59e0b;
-      }
-      #complexity-legend .dot.red {
-        background: #ef4444;
-      }
-      /* Stats Bar - Bottom */
-      #stats-bar {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        background: rgba(2, 8, 23, 0.9);
-        border-top: 1px solid #1e293b;
-        padding: 10px 24px;
-        color: #64748b;
-        font-size: 12px;
-        display: flex;
-        gap: 16px;
-        z-index: 150;
-        backdrop-filter: blur(8px);
-      }
-      #stats-bar span {
-        color: #94a3b8;
-      }
-      #stats-bar .stat-value {
-        color: #e2e8f0;
-        font-weight: 600;
-      }
-      #stats-bar .divider {
-        color: #334155;
-      }
-
-      /* Tooltip Styles */
-      .tooltip-trigger {
-        position: relative;
-        display: inline-flex;
-        align-items: center;
-      }
-      .tooltip-content {
-        visibility: hidden;
-        position: absolute;
-        bottom: 100%;
-        left: 0;
-        transform: translateY(-8px);
-        background: #1e293b;
-        color: #e2e8f0;
-        padding: 8px 12px;
-        border-radius: 6px;
-        font-size: 11px;
-        font-weight: 400;
-        white-space: normal;
-        width: max-content;
-        max-width: 220px;
-        z-index: 1000;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-        border: 1px solid #334155;
-        text-transform: none;
-        letter-spacing: normal;
-        opacity: 0;
-        transition: all 0.2s;
-        pointer-events: none;
-      }
-      .tooltip-content::after {
-        content: "";
-        position: absolute;
-        top: 100%;
-        left: 15px;
-        border-width: 6px;
-        border-style: solid;
-        border-color: #334155 transparent transparent transparent;
-      }
-      
-      /* Right Edge Modifier for Right Column Tooltips */
-      .tooltip-right-edge .tooltip-content {
-        left: auto;
-        right: 0;
-      }
-      .tooltip-right-edge .tooltip-content::after {
-        left: auto;
-        right: 15px;
-      }
-      .tooltip-trigger:hover .tooltip-content {
-        visibility: visible;
-        opacity: 1;
-        transform: translateY(-4px);
-      }
-    </style>
+    <link rel="stylesheet" href="/style.css" />
   </head>
   <body>
     <div id="sidebar">
-      <h2>🗺️ RepoTour</h2>
+      <h2>🗺️ CodeAtlas</h2>
       <p class="subtitle">Interactive codebase architecture mapper</p>
       <div style="display: flex; gap: 5px; margin-bottom: 10px">
         <input
@@ -1032,6 +64,34 @@
         <div id="detail-content">
           Run an analysis and click a node in the graph to view file
           dependencies.
+        </div>
+      </div>
+
+      <!-- GitHub Profile Widget -->
+      <div id="user-profile">
+        <div class="profile-container">
+          <div class="profile-info">
+            <img id="user-avatar" src="" alt="Avatar" />
+            <div class="profile-text">
+              <span id="user-name"></span>
+              <span class="profile-status">GitHub Connected</span>
+            </div>
+          </div>
+          <button id="logoutBtn" class="logout-button">
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"
+              />
+            </svg>
+            Logout
+          </button>
         </div>
       </div>
     </div>
@@ -1125,39 +185,117 @@
           <div class="stat-cards">
             <div class="stat-card">
               <div class="stat-card-value" id="panel-branches">0</div>
-              <div class="stat-card-label tooltip-trigger" style="display: flex; align-items: center; justify-content: center; gap: 6px; position: relative;">
+              <div
+                class="stat-card-label tooltip-trigger"
+                style="
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  gap: 6px;
+                  position: relative;
+                "
+              >
                 Branches
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px !important; height: 14px !important; min-width: 14px !important; flex-shrink: 0; opacity: 0.7; cursor: help; display: block;">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-                  <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                </svg>
-                <div class="tooltip-content">The total number of decision points (if/else, switch, loops). Higher numbers require more unit tests.</div>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-card-value" id="panel-nesting">0</div>
-              <div class="stat-card-label tooltip-trigger tooltip-right-edge" style="display: flex; align-items: center; justify-content: center; gap: 6px; position: relative;">
-                Max Nesting
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px !important; height: 14px !important; min-width: 14px !important; flex-shrink: 0; opacity: 0.7; cursor: help; display: block;">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-                  <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                </svg>
-                <div class="tooltip-content">The deepest level of nested blocks or callbacks. Deep nesting drastically reduces code readability.</div>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-card-value" id="panel-todos">0</div>
-              <div class="stat-card-label tooltip-trigger" style="display: flex; align-items: center; justify-content: center; gap: 6px; position: relative;">
-                TODOs
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px !important; height: 14px !important; min-width: 14px !important; flex-shrink: 0; opacity: 0.7; cursor: help; display: block;">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  style="
+                    width: 14px !important;
+                    height: 14px !important;
+                    min-width: 14px !important;
+                    flex-shrink: 0;
+                    opacity: 0.7;
+                    cursor: help;
+                    display: block;
+                  "
+                >
                   <circle cx="12" cy="12" r="10"></circle>
                   <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
                   <line x1="12" y1="17" x2="12.01" y2="17"></line>
                 </svg>
                 <div class="tooltip-content">
-Pending technical issues marked with // TODO or // FIXME. High numbers indicate incomplete features or areas requiring future refactoring.</div>
+                  The total number of decision points (if/else, switch, loops).
+                  Higher numbers require more unit tests.
+                </div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-value" id="panel-nesting">0</div>
+              <div
+                class="stat-card-label tooltip-trigger tooltip-right-edge"
+                style="
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  gap: 6px;
+                  position: relative;
+                "
+              >
+                Max Nesting
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  style="
+                    width: 14px !important;
+                    height: 14px !important;
+                    min-width: 14px !important;
+                    flex-shrink: 0;
+                    opacity: 0.7;
+                    cursor: help;
+                    display: block;
+                  "
+                >
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                  <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                <div class="tooltip-content">
+                  The deepest level of nested blocks or callbacks. Deep nesting
+                  drastically reduces code readability.
+                </div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-value" id="panel-todos">0</div>
+              <div
+                class="stat-card-label tooltip-trigger"
+                style="
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  gap: 6px;
+                  position: relative;
+                "
+              >
+                TODOs
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  style="
+                    width: 14px !important;
+                    height: 14px !important;
+                    min-width: 14px !important;
+                    flex-shrink: 0;
+                    opacity: 0.7;
+                    cursor: help;
+                    display: block;
+                  "
+                >
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                  <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                <div class="tooltip-content">
+                  Pending technical issues marked with // TODO or // FIXME. High
+                  numbers indicate incomplete features or areas requiring future
+                  refactoring.
+                </div>
               </div>
             </div>
             <div class="stat-card">
@@ -1185,36 +323,88 @@ Pending technical issues marked with // TODO or // FIXME. High numbers indicate 
         </button>
         <div id="ai-summary-section"></div>
         <!-- Blast Radius trigger (shown when a node is selected) -->
-<button
-  class="blast-calc-btn"
-  id="blast-calc-btn"
-  style="display: none; position: relative;"
->
-  <div style="display: flex; align-items: center; justify-content: center; gap: 6px;">
-    🔥 Calculate Blast Radius
-    
-    <span class="tooltip-trigger tooltip-right-edge" style="display: flex; align-items: center; position: relative;">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px !important; height: 14px !important; min-width: 14px !important; flex-shrink: 0; opacity: 0.7; cursor: help; display: block;">
-        <circle cx="12" cy="12" r="10"></circle>
-        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-      </svg>
-      
-      <div class="tooltip-content">Highlights all downstream files that depend on this module. Modifying this file may break these dependencies.</div>
-    </span>
+        <button
+          class="blast-calc-btn"
+          id="blast-calc-btn"
+          style="display: none; position: relative"
+        >
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              gap: 6px;
+            "
+          >
+            🔥 Calculate Blast Radius
 
-  </div>
-</button>
+            <span
+              class="tooltip-trigger tooltip-right-edge"
+              style="display: flex; align-items: center; position: relative"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                style="
+                  width: 14px !important;
+                  height: 14px !important;
+                  min-width: 14px !important;
+                  flex-shrink: 0;
+                  opacity: 0.7;
+                  cursor: help;
+                  display: block;
+                "
+              >
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+
+              <div class="tooltip-content">
+                Highlights all downstream files that depend on this module.
+                Modifying this file may break these dependencies.
+              </div>
+            </span>
+          </div>
+        </button>
         <!-- Refactor command panel (shown after blast radius is calculated) -->
         <div id="refactor-panel">
-          <div class="rp-title tooltip-trigger" style="display: flex; align-items: center; justify-content: center; gap: 6px; position: relative;">
+          <div
+            class="rp-title tooltip-trigger"
+            style="
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              gap: 6px;
+              position: relative;
+            "
+          >
             🔥 Blast Radius — Refactor Command
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px !important; height: 14px !important; min-width: 14px !important; flex-shrink: 0; opacity: 0.7; cursor: help; display: block;">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              style="
+                width: 14px !important;
+                height: 14px !important;
+                min-width: 14px !important;
+                flex-shrink: 0;
+                opacity: 0.7;
+                cursor: help;
+                display: block;
+              "
+            >
               <circle cx="12" cy="12" r="10"></circle>
               <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
               <line x1="12" y1="17" x2="12.01" y2="17"></line>
             </svg>
-            <div class="tooltip-content">Highlights all downstream files that depend on this module. Modifying this file may break these dependencies.</div>
+            <div class="tooltip-content">
+              Highlights all downstream files that depend on this module.
+              Modifying this file may break these dependencies.
+            </div>
           </div>
           <div class="rp-file-list" id="rp-file-list"></div>
           <textarea
@@ -2066,22 +1256,31 @@ Pending technical issues marked with // TODO or // FIXME. High numbers indicate 
           });
         })();
 
-        // ── STEP 2: Assign X target per top-level directory ───────────────
+        // ── STEP 2: Assign Foci Targets per top-level directory ────────────
         const dirList = Array.from(
           new Set(nodes.map((n) => n.id.split("/")[0])),
         );
         const dirCount = dirList.length || 1;
-        // Space directories evenly across 80 % of the canvas width
-        const dirXMap = new Map();
+
+        // Multi-foci: Arrange directory clusters in a circle to prevent overlap
+        const centerX = width / 2;
+        const centerY = height / 2;
+        const radius = Math.min(width, height) * 0.35; // The radius of the foci circle
+
+        const fociMap = new Map();
         dirList.forEach((dir, i) => {
-          dirXMap.set(
-            dir,
-            width * 0.1 + (i / (dirCount - 1 || 1)) * width * 0.8,
-          );
+          const angle = (i / dirCount) * 2 * Math.PI;
+          fociMap.set(dir, {
+            x: centerX + radius * Math.cos(angle),
+            y: centerY + radius * Math.sin(angle),
+          });
         });
+
         nodes.forEach((n) => {
           const dir = n.id.split("/")[0];
-          n._targetX = dirXMap.get(dir) ?? width / 2;
+          const focus = fociMap.get(dir) || { x: centerX, y: centerY };
+          n._targetX = focus.x;
+          n._targetY = focus.y;
         });
 
         // ── STEP 3: Hierarchical Force Simulation ─────────────────────────
@@ -2096,30 +1295,24 @@ Pending technical issues marked with // TODO or // FIXME. High numbers indicate 
             d3
               .forceLink(links)
               .id((d) => d.id)
-              .distance(100)
-              .strength(0.15),
+              .distance(60) // Tighter links within clusters
+              .strength(0.1),
           )
-          // Mild repulsion so sibling nodes spread naturally
-          .force("charge", d3.forceManyBody().strength(-220).distanceMax(400))
-          // No forceCenter — depth rows replace it vertically
-          // forceY: snap every node to its depth row
-          .force(
-            "y",
-            d3.forceY((d) => Y_ORIGIN + d.depth * Y_SPACING).strength(0.55),
-          )
-          // forceX: pull each node toward its directory column
-          .force("x", d3.forceX((d) => d._targetX).strength(0.22))
-          // Prevent overlap
+          // Push clusters apart and allow internal breathing room
+          .force("charge", d3.forceManyBody().strength(-350).distanceMax(600))
+          // Multi-foci: Pull each node toward its specific directory focus
+          .force("x", d3.forceX((d) => d._targetX).strength(0.18))
+          .force("y", d3.forceY((d) => d._targetY).strength(0.18))
+          // Hard collision to prevent node overlap within clusters
           .force(
             "collide",
             d3
               .forceCollide()
-              .radius((d) => getNodeRadius(d) + 14)
-              .strength(0.9),
+              .radius((d) => getNodeRadius(d) + 16)
+              .strength(0.8),
           )
-          // Run more alpha ticks so the layout settles faster on load
-          .alphaDecay(0.022)
-          .velocityDecay(0.38);
+          .alphaDecay(0.015) // Slower decay for smoother transition to foci
+          .velocityDecay(0.42);
 
         const link = g
           .append("g")
@@ -2381,6 +1574,28 @@ Pending technical issues marked with // TODO or // FIXME. High numbers indicate 
           .on("drag", dragged)
           .on("end", dragended);
       }
+      // Logout & Session Handling
+      const logoutBtn = document.getElementById("logoutBtn");
+      logoutBtn.addEventListener("click", () => {
+        window.location.href = "/auth/logout";
+      });
+
+      // Fetch User Session
+      async function initSession() {
+        try {
+          const res = await fetch("/api/session");
+          const data = await res.json();
+          if (data.authenticated && data.user) {
+            document.getElementById("user-profile").style.display = "block";
+            document.getElementById("user-avatar").src = data.user.avatar;
+            document.getElementById("user-name").textContent =
+              data.user.username;
+          }
+        } catch (err) {
+          console.error("Session error:", err);
+        }
+      }
+      initSession();
     </script>
   </body>
 </html>

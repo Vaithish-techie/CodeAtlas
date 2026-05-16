@@ -27,6 +27,11 @@ const GITHUB_CALLBACK_URL =
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. SESSION SETUP
 // ─────────────────────────────────────────────────────────────────────────────
+// 1. Body Parsers
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// 2. Session Setup
 app.use(
   session({
     secret:
@@ -40,24 +45,21 @@ app.use(
   }),
 );
 
-app.use(express.json());
+// 3. & 4. Passport Initialization
+app.use(passport.initialize());
+app.use(passport.session());
+
+// 5. Static Files
 app.use(express.static("public", { index: false }));
 
+// 6. Routes
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "landing.html"));
 });
 
-app.get("/app", (req, res) => {
+app.get("/app", ensureAuthenticated, (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 2. PASSPORT CONFIGURATION
-// ─────────────────────────────────────────────────────────────────────────────
-
-// Initialize Passport
-app.use(passport.initialize());
-app.use(passport.session());
 
 // Serialize user into session (store user ID)
 passport.serializeUser((user, done) => {
@@ -123,7 +125,7 @@ function ensureAuthenticated(req, res, next) {
   }
 
   // Otherwise redirect to landing page
-  res.redirect("/landing.html");
+  res.redirect("/");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -959,11 +961,32 @@ app.get("/auth/github", passport.authenticate("github", { scope: ["repo"] }));
  */
 app.get(
   "/auth/github/callback",
-  passport.authenticate("github", {
-    successRedirect: "/app",
-    failureRedirect: "/",
-  }),
+  passport.authenticate("github", { failureRedirect: "/" }),
+  function (req, res) {
+    // On success, redirect to the main app dashboard
+    res.redirect("/app");
+  },
 );
+
+/**
+ * GET /auth/logout
+ * Terminate the user session and clear cookies
+ */
+app.get("/auth/logout", (req, res) => {
+  req.logout((err) => {
+    if (err) {
+      console.error("Logout error:", err);
+      return res.redirect("/app");
+    }
+    req.session.destroy((err) => {
+      if (err) {
+        console.error("Session destruction error:", err);
+      }
+      res.clearCookie("connect.sid"); // Clear the default session cookie
+      res.redirect("/"); // Redirect back to landing page
+    });
+  });
+});
 
 /**
  * GET /api/session

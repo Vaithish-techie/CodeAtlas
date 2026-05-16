@@ -3,14 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CodeAtlas | Overcome Onboarding Paralysis</title>
+    <title>CodeAtlas | Interactive Architecture Visualizer</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
-      rel="stylesheet"
-    />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <style>
+      :root {
+        --bg: #0d1117;
+        --accent: #58a6ff;
+        --accent-glow: rgba(88, 166, 255, 0.4);
+        --text-main: #f0f6fc;
+        --text-muted: #8b949e;
+        --border: #30363d;
+      }
+
       * {
         margin: 0;
         padding: 0;
@@ -18,32 +24,38 @@
       }
 
       body {
-        font-family:
-          "Inter",
-          system-ui,
-          -apple-system,
-          sans-serif;
-        background: linear-gradient(135deg, #0a0e1a 0%, #1a1f35 100%);
-        color: #e2e8f0;
+        font-family: "Inter", -apple-system, system-ui, sans-serif;
+        background-color: var(--bg);
+        color: var(--text-main);
         line-height: 1.6;
         overflow-x: hidden;
       }
 
-      /* Navigation */
+      /* Animated Background */
+      body::before {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(circle at 50% -20%, #1e293b 0%, transparent 50%);
+        z-index: -1;
+      }
+
       nav {
         position: fixed;
         top: 0;
         width: 100%;
-        background: rgba(10, 14, 26, 0.95);
-        backdrop-filter: blur(10px);
-        border-bottom: 1px solid rgba(99, 102, 241, 0.2);
-        padding: 1rem 2rem;
+        padding: 1.5rem 2rem;
+        backdrop-filter: blur(12px);
+        background: rgba(13, 17, 23, 0.7);
+        border-bottom: 1px solid var(--border);
         z-index: 1000;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
       }
 
       .nav-container {
-        max-width: 1200px;
+        max-width: 1100px;
         margin: 0 auto;
         display: flex;
         justify-content: space-between;
@@ -53,531 +65,200 @@
       .logo {
         font-size: 1.5rem;
         font-weight: 800;
-        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
+        letter-spacing: -1px;
+        color: var(--accent);
       }
 
-      .github-btn {
-        padding: 0.75rem 1.5rem;
-        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-        color: white;
-        border: none;
-        border-radius: 8px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-size: 0.95rem;
-      }
-
-      .github-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4);
-      }
-
-      .github-icon {
-        width: 20px;
-        height: 20px;
-      }
-
-      /* Hero Section */
       .hero {
-        margin-top: 80px;
-        padding: 6rem 2rem 4rem;
+        min-height: 90vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
         text-align: center;
+        padding: 8rem 2rem 4rem;
         max-width: 900px;
-        margin-left: auto;
-        margin-right: auto;
+        margin: 0 auto;
       }
 
       .hero h1 {
-        font-size: 3.5rem;
+        font-size: clamp(3rem, 8vw, 5rem);
         font-weight: 800;
-        line-height: 1.2;
+        line-height: 1.05;
+        letter-spacing: -2px;
         margin-bottom: 1.5rem;
-        background: linear-gradient(135deg, #ffffff 0%, #a5b4fc 100%);
+        background: linear-gradient(to bottom, #fff 30%, #94a3b8);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        background-clip: text;
-      }
-
-      .hero .highlight {
-        color: #6366f1;
-        -webkit-text-fill-color: #6366f1;
       }
 
       .hero p {
         font-size: 1.25rem;
-        color: #94a3b8;
+        color: var(--text-muted);
+        max-width: 650px;
         margin-bottom: 3rem;
-        max-width: 700px;
-        margin-left: auto;
-        margin-right: auto;
       }
 
-      /* Input Section */
-      .input-container {
-        max-width: 600px;
-        margin: 0 auto 4rem;
+      .cta-btn {
         position: relative;
-      }
-
-      .input-wrapper {
-        display: flex;
-        gap: 1rem;
-        background: rgba(15, 23, 42, 0.8);
-        padding: 0.5rem;
-        border-radius: 12px;
-        border: 2px solid rgba(99, 102, 241, 0.3);
-        transition: all 0.3s ease;
-      }
-
-      .input-wrapper:focus-within {
-        border-color: #6366f1;
-        box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
-      }
-
-      #repoUrl {
-        flex: 1;
-        padding: 1rem 1.25rem;
-        background: transparent;
-        border: none;
-        color: #e2e8f0;
-        font-size: 1rem;
-        outline: none;
-      }
-
-      #repoUrl::placeholder {
-        color: #64748b;
-      }
-
-      .analyze-btn {
-        padding: 1rem 2rem;
-        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-        color: white;
-        border: none;
-        border-radius: 8px;
+        padding: 1rem 2.5rem;
+        font-size: 1.1rem;
         font-weight: 600;
+        color: #fff;
+        background: #238636;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
         cursor: pointer;
         transition: all 0.3s ease;
-        white-space: nowrap;
-        font-size: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        box-shadow: 0 0 20px rgba(35, 134, 54, 0.2);
       }
 
-      .analyze-btn:hover:not(:disabled) {
-        transform: scale(1.05);
-        box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4);
+      .cta-btn:hover {
+        background: #2ea043;
+        transform: translateY(-2px);
+        box-shadow: 0 0 30px rgba(35, 134, 54, 0.4);
       }
 
-      .analyze-btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
+      .cta-btn::after {
+        content: "";
+        position: absolute;
+        inset: -4px;
+        background: linear-gradient(45deg, #238636, #58a6ff);
+        filter: blur(15px);
+        z-index: -1;
+        opacity: 0;
+        transition: opacity 0.3s ease;
       }
 
-      /* Features Grid */
+      .cta-btn:hover::after {
+        opacity: 0.4;
+      }
+
       .features {
-        padding: 4rem 2rem;
-        max-width: 1200px;
-        margin: 0 auto;
-      }
-
-      .section-title {
-        text-align: center;
-        font-size: 2.5rem;
-        font-weight: 700;
-        margin-bottom: 3rem;
-        color: #f1f5f9;
-      }
-
-      .features-grid {
+        max-width: 1100px;
+        margin: 0 auto 8rem;
+        padding: 0 2rem;
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
         gap: 2rem;
-        margin-bottom: 4rem;
       }
 
       .feature-card {
-        background: rgba(15, 23, 42, 0.6);
-        border: 1px solid rgba(99, 102, 241, 0.2);
-        border-radius: 16px;
-        padding: 2rem;
+        background: rgba(22, 27, 34, 0.5);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 2.5rem;
         transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
       }
 
       .feature-card:hover {
-        transform: translateY(-5px);
-        border-color: rgba(99, 102, 241, 0.5);
-        box-shadow: 0 10px 40px rgba(99, 102, 241, 0.2);
+        border-color: #484f58;
+        background: rgba(22, 27, 34, 0.8);
+        transform: translateY(-4px);
+      }
+
+      .feature-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, rgba(88, 166, 255, 0.1) 0%, transparent 100%);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+
+      .feature-card:hover::before {
+        opacity: 1;
       }
 
       .feature-icon {
-        width: 48px;
-        height: 48px;
-        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        font-size: 2rem;
         margin-bottom: 1.5rem;
-        font-size: 1.5rem;
+        display: block;
       }
 
       .feature-card h3 {
         font-size: 1.5rem;
         margin-bottom: 1rem;
-        color: #f1f5f9;
+        font-weight: 700;
       }
 
       .feature-card p {
-        color: #94a3b8;
+        color: var(--text-muted);
+        font-size: 1rem;
         line-height: 1.7;
       }
 
-      /* Supported Ecosystems */
-      .ecosystems {
-        padding: 4rem 2rem;
-        background: rgba(15, 23, 42, 0.4);
-        border-top: 1px solid rgba(99, 102, 241, 0.2);
-        border-bottom: 1px solid rgba(99, 102, 241, 0.2);
-      }
-
-      .ecosystems-container {
-        max-width: 1200px;
-        margin: 0 auto;
-        text-align: center;
-      }
-
-      .ecosystem-badges {
-        display: flex;
-        justify-content: center;
-        gap: 1.5rem;
-        flex-wrap: wrap;
-        margin-top: 2rem;
-      }
-
-      .badge {
-        background: rgba(99, 102, 241, 0.1);
-        border: 2px solid rgba(99, 102, 241, 0.3);
-        padding: 1rem 2rem;
-        border-radius: 12px;
-        font-weight: 600;
-        font-size: 1.1rem;
-        color: #a5b4fc;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        transition: all 0.3s ease;
-      }
-
-      .badge:hover {
-        background: rgba(99, 102, 241, 0.2);
-        border-color: #6366f1;
-        transform: scale(1.05);
-      }
-
-      .badge-icon {
-        font-size: 1.5rem;
-      }
-
-      /* CTA Section */
-      .cta {
-        padding: 6rem 2rem;
-        text-align: center;
-        max-width: 800px;
-        margin: 0 auto;
-      }
-
-      .cta h2 {
-        font-size: 2.5rem;
-        font-weight: 700;
-        margin-bottom: 1.5rem;
-        color: #f1f5f9;
-      }
-
-      .cta p {
-        font-size: 1.25rem;
-        color: #94a3b8;
-        margin-bottom: 2rem;
-      }
-
-      /* Footer */
       footer {
-        padding: 2rem;
         text-align: center;
-        color: #64748b;
-        border-top: 1px solid rgba(99, 102, 241, 0.2);
+        padding: 4rem 2rem;
+        border-top: 1px solid var(--border);
+        color: var(--text-muted);
+        font-size: 0.9rem;
       }
 
-      /* Loading State */
-      .loading {
-        display: none;
-        text-align: center;
-        margin-top: 1rem;
-        color: #6366f1;
-        font-weight: 600;
-      }
-
-      .loading.active {
-        display: block;
-      }
-
-      .spinner {
-        display: inline-block;
-        width: 20px;
-        height: 20px;
-        border: 3px solid rgba(99, 102, 241, 0.3);
-        border-top-color: #6366f1;
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-        margin-right: 0.5rem;
-      }
-
-      @keyframes spin {
-        to {
-          transform: rotate(360deg);
-        }
-      }
-
-      /* Responsive */
       @media (max-width: 768px) {
-        .hero h1 {
-          font-size: 2.5rem;
-        }
-
-        .hero p {
-          font-size: 1.1rem;
-        }
-
-        .input-wrapper {
-          flex-direction: column;
-        }
-
-        .features-grid {
-          grid-template-columns: 1fr;
-        }
+        .hero { padding: 6rem 1.5rem; }
+        .hero h1 { font-size: 3rem; }
       }
     </style>
   </head>
   <body>
-    <!-- Navigation -->
     <nav>
       <div class="nav-container">
         <div class="logo">🗺️ CodeAtlas</div>
-        <button class="github-btn" onclick="connectGitHub()">
-          <svg
-            class="github-icon"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"
-            />
-          </svg>
-          Connect to GitHub
+        <button class="cta-btn" style="padding: 0.6rem 1.2rem; font-size: 0.9rem;" onclick="connectGitHub()">
+          Login
         </button>
       </div>
     </nav>
 
-    <!-- Hero Section -->
     <section class="hero">
-      <h1>
-        Overcome<br />
-        <span class="highlight">Onboarding Paralysis</span>
-      </h1>
+      <h1>Map your code in <span style="color: var(--accent);">3D</span>.</h1>
       <p>
-        Instantly visualize any codebase architecture. AI-powered dependency
-        mapping, cognitive complexity scoring, and automated refactoring for
-        JavaScript & TypeScript projects.
+        Instantly visualize architecture, identify technical debt, and 
+        understand dependencies with AI-powered codebase mapping.
       </p>
 
-      <!-- Input Section -->
-      <div class="input-container">
-        <div class="input-wrapper">
-          <input
-            type="text"
-            id="repoUrl"
-            placeholder="https://github.com/expressjs/express"
-            autocomplete="off"
-          />
-          <button class="analyze-btn" onclick="analyzeRepo()">
-            Analyze Repository
-          </button>
-        </div>
-        <div class="loading" id="loading">
-          <span class="spinner"></span>
-          Cloning and analyzing repository...
-        </div>
-      </div>
-    </section>
-
-    <!-- Features Section -->
-    <section class="features">
-      <h2 class="section-title">Why CodeAtlas?</h2>
-      <div class="features-grid">
-        <div class="feature-card">
-          <div class="feature-icon">🗺️</div>
-          <h3>Interactive Architecture Map</h3>
-          <p>
-            D3.js-powered force-directed graph showing every file and its
-            dependencies. Drag, zoom, and click to explore your codebase
-            visually.
-          </p>
-        </div>
-
-        <div class="feature-card">
-          <div class="feature-icon">🧠</div>
-          <h3>Cognitive Complexity Scoring</h3>
-          <p>
-            Real-time heatmap highlighting files by complexity. Identify
-            technical debt hotspots with branching, nesting, and TODO analysis.
-          </p>
-        </div>
-
-        <div class="feature-card">
-          <div class="feature-icon">🔍</div>
-          <h3>AI-Powered File Intelligence</h3>
-          <p>
-            Click any file to get Gemini AI summaries, function breakdowns, role
-            classification, and maintainability risk assessments.
-          </p>
-        </div>
-
-        <div class="feature-card">
-          <div class="feature-icon">💥</div>
-          <h3>Blast Radius Preview</h3>
-          <p>
-            Right-click to see which files would be affected by changes. Visual
-            impact analysis before you refactor.
-          </p>
-        </div>
-
-        <div class="feature-card">
-          <div class="feature-icon">🏥</div>
-          <h3>Health Scanning</h3>
-          <p>
-            Automated detection of dead code, missing tests, and documentation
-            gaps. Get actionable insights to improve code quality.
-          </p>
-        </div>
-
-        <div class="feature-card">
-          <div class="feature-icon">🤖</div>
-          <h3>Auto-Refactor & PR</h3>
-          <p>
-            AI-generated fixes committed directly to GitHub. One-click pull
-            requests for automated code improvements.
-          </p>
-        </div>
-      </div>
-    </section>
-
-    <!-- Supported Ecosystems -->
-    <section class="ecosystems">
-      <div class="ecosystems-container">
-        <h2 class="section-title">Supported Ecosystems</h2>
-        <div class="ecosystem-badges">
-          <div class="badge">
-            <span class="badge-icon">📜</span>
-            JavaScript (.js)
-          </div>
-          <div class="badge">
-            <span class="badge-icon">🔷</span>
-            TypeScript (.ts)
-          </div>
-          <div class="badge">
-            <span class="badge-icon">⚛️</span>
-            React (.jsx)
-          </div>
-          <div class="badge">
-            <span class="badge-icon">⚛️</span>
-            React + TS (.tsx)
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- CTA Section -->
-    <section class="cta">
-      <h2>Ready to Map Your Codebase?</h2>
-      <p>
-        Connect your GitHub account to unlock automated refactoring and pull
-        request creation.
-      </p>
-      <button class="github-btn" onclick="connectGitHub()">
-        <svg
-          class="github-icon"
-          viewBox="0 0 24 24"
-          fill="currentColor"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"
-          />
-        </svg>
-        Get Started with GitHub
+      <button class="cta-btn" onclick="connectGitHub()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+        Continue with GitHub
       </button>
     </section>
 
-    <!-- Footer -->
+    <section class="features">
+      <div class="feature-card">
+        <span class="feature-icon">🗺️</span>
+        <h3>Architecture Maps</h3>
+        <p>Interactive force-directed graphs showing every file and its dependencies in high-fidelity.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">🧠</span>
+        <h3>Cognitive Scoring</h3>
+        <p>Identify hotspots of technical debt with automated complexity analysis and heatmaps.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">🔍</span>
+        <h3>AI Insights</h3>
+        <p>Get instant function summaries and maintainability risk assessments powered by Gemini.</p>
+      </div>
+    </section>
+
     <footer>
-      <p>
-        Built for developers, by developers. Open source and hackathon-ready.
-      </p>
+      <p>&copy; 2026 CodeAtlas. Built for elite development teams.</p>
     </footer>
 
     <script>
-      // Connect to GitHub OAuth
       function connectGitHub() {
         window.location.href = "/auth/github";
       }
-
-      // Analyze Repository
-      async function analyzeRepo() {
-        const input = document.getElementById("repoUrl");
-        const url = input.value.trim();
-        const loading = document.getElementById("loading");
-        const btn = document.querySelector(".analyze-btn");
-
-        if (!url) {
-          alert("Please enter a GitHub repository URL");
-          return;
-        }
-
-        // Validate GitHub URL
-        if (!url.match(/github\.com\/[\w-]+\/[\w-]+/)) {
-          alert("Please enter a valid GitHub repository URL");
-          return;
-        }
-
-        // Show loading state
-        loading.classList.add("active");
-        btn.disabled = true;
-        btn.textContent = "Analyzing...";
-
-        try {
-          // Store the URL and redirect to main app
-          sessionStorage.setItem("targetRepo", url);
-          window.location.href = "/app";
-        } catch (error) {
-          console.error("Error:", error);
-          alert("Failed to analyze repository. Please try again.");
-          loading.classList.remove("active");
-          btn.disabled = false;
-          btn.textContent = "Analyze Repository";
-        }
-      }
-
-      // Allow Enter key to submit
-      document.getElementById("repoUrl").addEventListener("keypress", (e) => {
-        if (e.key === "Enter") {
-          analyzeRepo();
-        }
-      });
     </script>
   </body>
 </html>
