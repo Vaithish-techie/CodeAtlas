@@ -11,25 +11,26 @@
         padding: 0;
         box-sizing: border-box;
       }
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
       body {
         margin: 0;
-        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        font-family: "Inter", system-ui, sans-serif;
         display: flex;
         height: 100vh;
-        background: #0d1117;
+        background: #080f1e;
         color: #c9d1d9;
         overflow: hidden;
       }
       #sidebar {
         width: 320px;
-        background: #161b22;
+        background: #0d1526;
         padding: 25px;
         display: flex;
         flex-direction: column;
         gap: 15px;
-        border-right: 1px solid #30363d;
+        border-right: 1px solid #1e293b;
         z-index: 10;
-        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
+        box-shadow: 2px 0 20px rgba(0, 0, 0, 0.6);
         overflow-y: auto;
       }
       h2 {
@@ -44,8 +45,8 @@
       }
       input {
         padding: 12px;
-        background: #0d1117;
-        border: 1px solid #30363d;
+        background: #080f1e;
+        border: 1px solid #1e293b;
         color: white;
         border-radius: 6px;
         font-size: 14px;
@@ -53,46 +54,52 @@
       }
       input:focus {
         outline: none;
-        border-color: #58a6ff;
+        border-color: #6366f1;
+        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
       }
       input::placeholder {
-        color: #6e7681;
+        color: #4a5568;
       }
       button {
         padding: 12px;
-        background: #238636;
+        background: linear-gradient(135deg, #1e3a5f 0%, #1a3050 100%);
         color: white;
-        border: none;
-        border-radius: 6px;
+        border: 1px solid #2d4a7a;
+        border-radius: 8px;
         cursor: pointer;
-        font-weight: bold;
+        font-weight: 600;
         font-size: 14px;
-        transition: background 0.2s;
+        transition: all 0.2s ease;
       }
       button:hover {
-        background: #2ea043;
+        background: linear-gradient(135deg, #254a80 0%, #1e3a6e 100%);
+        border-color: #4d7abf;
+        box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
       }
       button:disabled {
-        background: #30363d;
-        color: #8b949e;
+        background: #1a2035;
+        color: #4a5568;
         cursor: not-allowed;
+        border-color: #1e293b;
+        box-shadow: none;
       }
       .secondary-btn {
-        background: #21262d;
-        color: #58a6ff;
-        border: 1px solid #30363d;
+        background: transparent;
+        color: #7aa2d4;
+        border: 1px solid #1e293b;
         margin-top: 10px;
       }
       .secondary-btn:hover {
-        background: #30363d;
-        border-color: #58a6ff;
+        background: rgba(99, 102, 241, 0.08);
+        border-color: #6366f1;
+        color: #a5b4fc;
       }
       #details {
         margin-top: 20px;
         padding: 15px;
-        background: #0d1117;
-        border-radius: 6px;
-        border: 1px solid #30363d;
+        background: #080f1e;
+        border-radius: 8px;
+        border: 1px solid #1e293b;
         font-size: 13px;
         line-height: 1.6;
         word-wrap: break-word;
@@ -113,44 +120,83 @@
       #graph-container {
         flex: 1;
         position: relative;
+        width: 100vw;
+        height: 100vh;
       }
       svg {
         width: 100%;
         height: 100%;
         cursor: grab;
+        background: radial-gradient(
+          ellipse at center,
+          #0d1a35 0%,
+          #080f1e 100%
+        );
       }
       svg:active {
         cursor: grabbing;
       }
       .node {
-        stroke: #161b22;
-        stroke-width: 2px;
         cursor: pointer;
-        transition: fill 0.2s;
+        transition:
+          fill 0.2s,
+          transform 0.2s;
       }
       .node:hover {
-        fill: #ff7b72 !important;
+        transform: scale(1.1);
       }
       .node.selected {
         stroke: #58a6ff;
         stroke-width: 3px;
       }
       .link {
-        stroke: #30363d;
+        stroke: #334155;
         stroke-opacity: 0.6;
-        stroke-width: 1.5px;
+        stroke-width: 1px;
       }
       .link.highlighted {
-        stroke: #58a6ff;
+        stroke: #6366f1;
         stroke-opacity: 1;
-        stroke-width: 2.5px;
+        stroke-width: 2px;
+      }
+      .link.dimmed {
+        stroke-opacity: 0.05;
       }
       .node-label {
-        font-size: 10px;
-        fill: #8b949e;
+        font-size: 11px;
+        fill: #e2e8f0;
         pointer-events: none;
         text-anchor: middle;
-        font-family: monospace;
+        font-family: "Inter", system-ui, sans-serif;
+        background: rgba(0, 0, 0, 0.6);
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+      .hub-label {
+        font-weight: 600;
+      }
+      #node-tooltip {
+        position: absolute;
+        display: none;
+        background: rgba(15, 23, 42, 0.95);
+        border: 1px solid #334155;
+        border-radius: 8px;
+        padding: 10px 14px;
+        font-size: 12px;
+        pointer-events: none;
+        z-index: 2500;
+        color: #e2e8f0;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(8px);
+      }
+      #node-tooltip .tooltip-name {
+        font-weight: 600;
+        margin-bottom: 4px;
+        color: #fff;
+      }
+      #node-tooltip .tooltip-complexity {
+        font-size: 11px;
+        color: #94a3b8;
       }
       #loader {
         display: none;
@@ -249,6 +295,631 @@
       .success-message {
         color: #3fb950;
       }
+      /* Complexity Tooltip */
+      #complexity-tooltip {
+        position: absolute;
+        display: none;
+        background: rgba(22, 27, 34, 0.98);
+        border: 1px solid #30363d;
+        border-radius: 6px;
+        padding: 12px;
+        font-size: 12px;
+        pointer-events: none;
+        z-index: 1000;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        max-width: 280px;
+      }
+      #complexity-tooltip .tooltip-filename {
+        color: #58a6ff;
+        font-weight: bold;
+        margin-bottom: 8px;
+        border-bottom: 1px solid #30363d;
+        padding-bottom: 5px;
+      }
+      #complexity-tooltip .tooltip-score {
+        font-size: 14px;
+        font-weight: bold;
+        margin: 8px 0;
+      }
+      #complexity-tooltip .score-low {
+        color: #22c55e;
+      }
+      #complexity-tooltip .score-medium {
+        color: #f59e0b;
+      }
+      #complexity-tooltip .score-high {
+        color: #ef4444;
+      }
+      #complexity-tooltip .tooltip-breakdown {
+        font-size: 11px;
+        color: #8b949e;
+        margin-top: 8px;
+      }
+      #complexity-tooltip .breakdown-item {
+        margin: 3px 0;
+      }
+      /* Complexity Legend */
+      #complexity-legend {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: rgba(22, 27, 34, 0.95);
+        border: 1px solid #30363d;
+        border-radius: 6px;
+        padding: 12px;
+        font-size: 11px;
+        z-index: 100;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      }
+      #complexity-legend .legend-title {
+        color: #58a6ff;
+        font-weight: bold;
+        margin-bottom: 8px;
+      }
+      #complexity-legend .legend-item {
+        display: flex;
+        align-items: center;
+        margin: 5px 0;
+        color: #8b949e;
+      }
+      #complexity-legend .legend-color {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        margin-right: 8px;
+        border: 1px solid #30363d;
+      }
+      /* File Intelligence Panel (Right Sidebar) */
+      #intelligence-panel {
+        position: fixed;
+        right: -360px;
+        top: 0;
+        width: 340px;
+        height: 100vh;
+        background: #0a1628;
+        border-left: 1px solid #1e293b;
+        box-shadow: -4px 0 30px rgba(0, 0, 0, 0.7);
+        z-index: 1000;
+        transition: right 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        overflow-y: auto;
+        padding: 20px;
+      }
+      #intelligence-panel.open {
+        right: 0;
+      }
+      #intelligence-panel .panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #1e293b;
+      }
+      #intelligence-panel .panel-title {
+        color: #7aa2d4;
+        font-size: 16px;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+      }
+      #intelligence-panel .close-btn {
+        background: none;
+        border: 1px solid #1e293b;
+        color: #64748b;
+        font-size: 20px;
+        cursor: pointer;
+        padding: 0;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        transition: all 0.15s;
+      }
+      #intelligence-panel .close-btn:hover {
+        background: #1e293b;
+        color: #e2e8f0;
+        border-color: #334155;
+      }
+      #intelligence-panel .section {
+        margin-bottom: 18px;
+      }
+      #intelligence-panel .section-title {
+        color: #4a6080;
+        font-size: 10px;
+        text-transform: uppercase;
+        font-weight: 700;
+        margin-bottom: 10px;
+        letter-spacing: 1px;
+      }
+      #intelligence-panel .file-name {
+        color: #e2e8f0;
+        font-size: 15px;
+        font-weight: 700;
+        margin-bottom: 5px;
+        word-break: break-all;
+      }
+      #intelligence-panel .file-path {
+        color: #4a6080;
+        font-size: 11px;
+        font-family: monospace;
+        margin-bottom: 15px;
+        word-break: break-all;
+      }
+      #intelligence-panel .complexity-bar-container {
+        background: #080f1e;
+        border: 1px solid #1e293b;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 10px;
+      }
+      #intelligence-panel .complexity-score-text {
+        font-size: 14px;
+        font-weight: 700;
+        margin-bottom: 8px;
+      }
+      #intelligence-panel .progress-bar {
+        width: 100%;
+        height: 6px;
+        background: #1e293b;
+        border-radius: 4px;
+        overflow: hidden;
+      }
+      #intelligence-panel .progress-fill {
+        height: 100%;
+        transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        border-radius: 4px;
+      }
+      /* Complexity reason subtext */
+      #complexity-reason-container {
+        display: none;
+        font-size: 12px;
+        font-style: italic;
+        color: #4a6080;
+        margin-top: 8px;
+        line-height: 1.5;
+        opacity: 0;
+        transition: opacity 0.4s ease;
+      }
+      #complexity-reason-container.visible {
+        display: block;
+        opacity: 1;
+      }
+      #intelligence-panel .stat-cards {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 15px;
+      }
+      #intelligence-panel .stat-card {
+        background: #080f1e;
+        border: 1px solid #1e293b;
+        border-radius: 8px;
+        padding: 10px;
+        text-align: center;
+        transition: border-color 0.2s;
+      }
+      #intelligence-panel .stat-card:hover {
+        border-color: #2d4a7a;
+      }
+      #intelligence-panel .stat-card-value {
+        color: #7aa2d4;
+        font-size: 18px;
+        font-weight: 700;
+      }
+      #intelligence-panel .stat-card-label {
+        color: #4a6080;
+        font-size: 10px;
+        margin-top: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      #intelligence-panel .dependency-list {
+        background: #080f1e;
+        border: 1px solid #1e293b;
+        border-radius: 8px;
+        padding: 10px;
+        max-height: 150px;
+        overflow-y: auto;
+        font-size: 11px;
+        font-family: monospace;
+      }
+      #intelligence-panel .dependency-item {
+        color: #64748b;
+        padding: 4px 0;
+        border-bottom: 1px solid #0f1d35;
+      }
+      #intelligence-panel .dependency-item:last-child {
+        border-bottom: none;
+      }
+      #intelligence-panel .dependency-item:hover {
+        color: #7aa2d4;
+      }
+      #intelligence-panel .ai-button {
+        width: 100%;
+        padding: 13px;
+        background: linear-gradient(135deg, #4f46e5 0%, #2563eb 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 700;
+        font-size: 14px;
+        letter-spacing: 0.3px;
+        transition: all 0.25s ease;
+        margin-top: 15px;
+        position: relative;
+        overflow: hidden;
+      }
+      #intelligence-panel .ai-button::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, #6366f1 0%, #3b82f6 100%);
+        opacity: 0;
+        transition: opacity 0.25s;
+      }
+      #intelligence-panel .ai-button:hover::before {
+        opacity: 1;
+      }
+      #intelligence-panel .ai-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(79, 70, 229, 0.5);
+      }
+      #intelligence-panel .ai-button span {
+        position: relative;
+        z-index: 1;
+      }
+      #intelligence-panel .ai-button:disabled {
+        background: linear-gradient(135deg, #4f46e5 0%, #2563eb 100%);
+        opacity: 0.75;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+      #intelligence-panel .ai-button.loading {
+        animation: btn-pulse 1.4s ease-in-out infinite;
+      }
+      @keyframes btn-pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.7;
+        }
+      }
+      #intelligence-panel .loading-spinner {
+        display: inline-block;
+        width: 13px;
+        height: 13px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top: 2px solid #fff;
+        border-radius: 50%;
+        animation: spin 0.75s linear infinite;
+        margin-right: 8px;
+        vertical-align: middle;
+      }
+      /* AI Summary Output Box */
+      #ai-summary-section {
+        display: none;
+        margin-top: 15px;
+        opacity: 0;
+        transform: translateY(6px);
+        transition:
+          opacity 0.4s ease,
+          transform 0.4s ease;
+      }
+      #ai-summary-section.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .ai-output-box {
+        background: #080f1e;
+        border-radius: 10px;
+        padding: 15px;
+        position: relative;
+        box-shadow: inset 0 1px 8px rgba(0, 0, 0, 0.5);
+      }
+      .ai-output-box::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: 10px;
+        padding: 1px;
+        background: linear-gradient(135deg, #4f46e5, #2563eb, #7c3aed);
+        -webkit-mask:
+          linear-gradient(#fff 0 0) content-box,
+          linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+        mask:
+          linear-gradient(#fff 0 0) content-box,
+          linear-gradient(#fff 0 0);
+        mask-composite: exclude;
+        pointer-events: none;
+      }
+      .ai-output-header {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 10px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: #7aa2d4;
+      }
+      .ai-output-text {
+        color: #c9d1d9;
+        font-size: 13px;
+        line-height: 1.65;
+      }
+      /* Context Menu */
+      #context-menu {
+        position: absolute;
+        display: none;
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 6px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        z-index: 2000;
+        min-width: 180px;
+      }
+      #context-menu .menu-item {
+        padding: 10px 15px;
+        cursor: pointer;
+        color: #c9d1d9;
+        font-size: 13px;
+        border-bottom: 1px solid #21262d;
+      }
+      #context-menu .menu-item:last-child {
+        border-bottom: none;
+      }
+      #context-menu .menu-item:hover {
+        background: #21262d;
+        color: #58a6ff;
+      }
+      /* Blast Radius Effects */
+      .node.blast-root {
+        fill: #ef4444 !important;
+        filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.9)) !important;
+      }
+      .node.blast-dependent {
+        fill: #f97316 !important;
+        filter: drop-shadow(0 0 6px rgba(249, 115, 22, 0.8)) !important;
+        animation: blast-pulse 1.6s ease-in-out infinite;
+      }
+      @keyframes blast-pulse {
+        0%,
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 0.75;
+          transform: scale(1.12);
+        }
+      }
+      .node.blast-dimmed {
+        opacity: 0.12;
+        filter: none !important;
+      }
+      .link.blast-affected {
+        stroke: #ef4444 !important;
+        stroke-width: 2.5px !important;
+        stroke-opacity: 1 !important;
+      }
+      .link.blast-dimmed {
+        opacity: 0.08;
+      }
+      #blast-badge {
+        position: absolute;
+        top: 80px;
+        right: 20px;
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        font-weight: bold;
+        font-size: 14px;
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+        display: none;
+        z-index: 100;
+      }
+      /* Calculate Blast Radius button */
+      .blast-calc-btn {
+        width: 100%;
+        margin-top: 12px;
+        padding: 11px;
+        background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%);
+        color: #fca5a5;
+        border: 1px solid #ef4444;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 700;
+        font-size: 13px;
+        letter-spacing: 0.3px;
+        transition: all 0.2s;
+      }
+      .blast-calc-btn:hover {
+        background: linear-gradient(135deg, #991b1b 0%, #b91c1c 100%);
+        color: #fff;
+        box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4);
+      }
+      /* Refactor command panel */
+      #blast-controls {
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 1px solid #1e293b;
+        display: none;
+      }
+      #blast-controls button {
+        width: 100%;
+        margin-bottom: 8px;
+      }
+      #refactor-panel {
+        display: none;
+        margin-top: 14px;
+        animation: fadeSlide 0.3s ease;
+      }
+      @keyframes fadeSlide {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      #refactor-panel .rp-title {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: #ef4444;
+        margin-bottom: 10px;
+      }
+      #refactor-panel .rp-file-list {
+        background: #080f1e;
+        border: 1px solid #1e293b;
+        border-radius: 6px;
+        padding: 8px 10px;
+        max-height: 130px;
+        overflow-y: auto;
+        font-size: 11px;
+        font-family: monospace;
+        margin-bottom: 12px;
+      }
+      #refactor-panel .rp-file-item {
+        color: #f97316;
+        padding: 3px 0;
+        border-bottom: 1px solid #0f1d35;
+      }
+      #refactor-panel .rp-file-item:last-child {
+        border-bottom: none;
+      }
+      #refactor-panel .rp-file-item.root-file {
+        color: #ef4444;
+        font-weight: 700;
+      }
+      #refactor-panel textarea {
+        width: 100%;
+        min-height: 80px;
+        background: #080f1e;
+        border: 1px solid #1e293b;
+        border-radius: 6px;
+        color: #e2e8f0;
+        font-size: 12px;
+        padding: 10px;
+        resize: vertical;
+        font-family: "Inter", sans-serif;
+        transition: border-color 0.2s;
+        box-sizing: border-box;
+      }
+      #refactor-panel textarea:focus {
+        outline: none;
+        border-color: #ef4444;
+        box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15);
+      }
+      #refactor-panel .rp-submit {
+        width: 100%;
+        margin-top: 10px;
+        padding: 11px;
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 700;
+        font-size: 13px;
+        transition: all 0.2s;
+      }
+      #refactor-panel .rp-submit:hover {
+        box-shadow: 0 4px 14px rgba(239, 68, 68, 0.45);
+        transform: translateY(-1px);
+      }
+      .clear-blast-btn {
+        background: transparent;
+        color: #64748b;
+        border: 1px solid #1e293b;
+        border-radius: 8px;
+        font-size: 12px;
+        padding: 8px;
+      }
+      .clear-blast-btn:hover {
+        background: #1e293b;
+        color: #e2e8f0;
+      }
+      /* Complexity Legend - Top Right */
+      #complexity-legend {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: rgba(15, 23, 42, 0.85);
+        border: 1px solid #1e293b;
+        border-radius: 10px;
+        padding: 14px 18px;
+        color: #94a3b8;
+        font-size: 13px;
+        backdrop-filter: blur(8px);
+        z-index: 150;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      }
+      #complexity-legend .legend-title {
+        font-weight: 600;
+        color: #e2e8f0;
+        margin-bottom: 10px;
+        font-size: 14px;
+      }
+      #complexity-legend .legend-item {
+        display: flex;
+        align-items: center;
+        margin: 6px 0;
+        font-size: 12px;
+      }
+      #complexity-legend .dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+      #complexity-legend .dot.green {
+        background: #22c55e;
+      }
+      #complexity-legend .dot.amber {
+        background: #f59e0b;
+      }
+      #complexity-legend .dot.red {
+        background: #ef4444;
+      }
+      /* Stats Bar - Bottom */
+      #stats-bar {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background: rgba(2, 8, 23, 0.9);
+        border-top: 1px solid #1e293b;
+        padding: 10px 24px;
+        color: #64748b;
+        font-size: 12px;
+        display: flex;
+        gap: 16px;
+        z-index: 150;
+        backdrop-filter: blur(8px);
+      }
+      #stats-bar span {
+        color: #94a3b8;
+      }
+      #stats-bar .stat-value {
+        color: #e2e8f0;
+        font-weight: 600;
+      }
+      #stats-bar .divider {
+        color: #334155;
+      }
     </style>
   </head>
   <body>
@@ -305,13 +976,139 @@
         <div class="loader-spinner"></div>
         <div>🔄 Cloning & Analyzing Repository...</div>
       </div>
+      <div id="complexity-legend">
+        <div class="legend-title">Complexity</div>
+        <div class="legend-item">
+          <span class="dot green"></span> Low (0–33)
+        </div>
+        <div class="legend-item">
+          <span class="dot amber"></span> Medium (34–66)
+        </div>
+        <div class="legend-item">
+          <span class="dot red"></span> High (67–100)
+        </div>
+      </div>
+      <div id="node-tooltip"></div>
+      <div id="complexity-tooltip"></div>
       <svg></svg>
+    </div>
+    <div id="intelligence-panel">
+      <div class="panel-header">
+        <div class="panel-title">📊 File Intelligence</div>
+        <button class="close-btn" id="closePanel">×</button>
+      </div>
+      <div id="panel-content">
+        <div class="section">
+          <div class="section-title">FILE INFO</div>
+          <div class="file-name" id="panel-filename">-</div>
+          <div class="file-path" id="panel-filepath">-</div>
+        </div>
+        <div class="section">
+          <div class="section-title">COMPLEXITY SCORE</div>
+          <div class="complexity-bar-container">
+            <div class="complexity-score-text" id="panel-complexity-text">
+              0/100 (Low)
+            </div>
+            <div class="progress-bar">
+              <div
+                class="progress-fill"
+                id="panel-complexity-bar"
+                style="width: 0%; background: #22c55e"
+              ></div>
+            </div>
+          </div>
+          <div id="complexity-reason-container"></div>
+        </div>
+        <div class="section">
+          <div class="section-title">COMPLEXITY BREAKDOWN</div>
+          <div class="stat-cards">
+            <div class="stat-card">
+              <div class="stat-card-value" id="panel-branches">0</div>
+              <div class="stat-card-label">Branches</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-value" id="panel-nesting">0</div>
+              <div class="stat-card-label">Max Nesting</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-value" id="panel-todos">0</div>
+              <div class="stat-card-label">TODOs</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-value" id="panel-lines">0</div>
+              <div class="stat-card-label">Lines</div>
+            </div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">
+            DIRECT IMPORTS (<span id="panel-imports-count">0</span>)
+          </div>
+          <div class="dependency-list" id="panel-imports">No imports</div>
+        </div>
+        <div class="section">
+          <div class="section-title">
+            IMPORTED BY (<span id="panel-importedby-count">0</span>)
+          </div>
+          <div class="dependency-list" id="panel-importedby">
+            Not imported by any file
+          </div>
+        </div>
+        <button class="ai-button" id="ai-summarize-btn">
+          <span>✨ Ask AI to Summarize</span>
+        </button>
+        <div id="ai-summary-section"></div>
+        <!-- Blast Radius trigger (shown when a node is selected) -->
+        <button
+          class="blast-calc-btn"
+          id="blast-calc-btn"
+          style="display: none"
+        >
+          🔥 Calculate Blast Radius
+        </button>
+        <!-- Refactor command panel (shown after blast radius is calculated) -->
+        <div id="refactor-panel">
+          <div class="rp-title">🔥 Blast Radius — Refactor Command</div>
+          <div class="rp-file-list" id="rp-file-list"></div>
+          <textarea
+            id="rp-instruction"
+            placeholder="E.g., Change this function to return a Promise instead of using a callback..."
+          ></textarea>
+          <button class="rp-submit" id="rp-submit-btn">
+            ⚡ Execute Multi-File Refactor
+          </button>
+        </div>
+        <div id="blast-controls">
+          <button class="clear-blast-btn" id="clear-blast-btn">
+            ✕ Clear Blast Radius
+          </button>
+        </div>
+      </div>
+    </div>
+    <div id="context-menu">
+      <div class="menu-item" id="show-blast-radius">🔥 Show Blast Radius</div>
+    </div>
+    <div id="blast-badge"></div>
+    <div id="stats-bar">
+      <span id="stat-nodes"><span class="stat-value">0</span> files</span>
+      <span class="divider">·</span>
+      <span id="stat-links"
+        ><span class="stat-value">0</span> dependencies</span
+      >
+      <span class="divider">·</span>
+      <span id="stat-high"
+        ><span class="stat-value">0</span> high complexity</span
+      >
+      <span class="divider">·</span>
+      <span id="stat-clusters"
+        ><span class="stat-value">0</span> directories</span
+      >
     </div>
     <script>
       const btn = document.getElementById("analyzeBtn");
       const healthScanBtn = document.getElementById("healthScanBtn");
       const loader = document.getElementById("loader");
-      
+
       // Health Scan button navigation
       healthScanBtn.addEventListener("click", () => {
         window.location.href = "health.html";
@@ -321,8 +1118,619 @@
       const nodeCountEl = document.getElementById("nodeCount");
       const linkCountEl = document.getElementById("linkCount");
       const svg = d3.select("svg");
+      const tooltip = document.getElementById("complexity-tooltip");
+      const intelligencePanel = document.getElementById("intelligence-panel");
+      const closePanel = document.getElementById("closePanel");
+      const aiSummarizeBtn = document.getElementById("ai-summarize-btn");
+      const aiSummarySection = document.getElementById("ai-summary-section");
+      const contextMenu = document.getElementById("context-menu");
+      const showBlastRadiusItem = document.getElementById("show-blast-radius");
+      const blastBadge = document.getElementById("blast-badge");
+      const blastControls = document.getElementById("blast-controls");
+      const initiateRefactorBtn = document.getElementById(
+        "initiate-refactor-btn",
+      );
+      const clearBlastBtn = document.getElementById("clear-blast-btn");
+      const nodeTooltip = document.getElementById("node-tooltip");
       let simulation;
       let currentData = { nodes: [], links: [] };
+      let currentSelectedNode = null;
+      let currentRepoPath = null;
+      let aiSummaryCache = new Map(); // Cache AI summaries
+      let blastRadiusActive = false;
+      let affectedNodes = [];
+      let contextMenuNode = null;
+
+      // ─── MERN Demo Data: enriched node metadata ───────────────────────────
+      const MERN_NODE_META = {
+        "auth.controller.ts": {
+          complexityReason:
+            "High cyclomatic complexity due to nested ternary operators and multiple async database calls within a single route handler.",
+          aiSummary:
+            "This controller handles JWT authentication, validates user login credentials against the MongoDB database using bcrypt comparison, and issues signed access tokens with configurable expiry. It also manages token refresh cycles and session invalidation.",
+        },
+        "App.jsx": {
+          complexityReason:
+            "Multiple conditional render paths, deeply nested provider hierarchy, and several useEffect hooks creating complex lifecycle dependencies.",
+          aiSummary:
+            "The root React component that bootstraps the application. It wraps all routes with the Redux store Provider, React Router, and global context providers for theming and authentication state. Handles top-level error boundaries and lazy-loaded route splitting.",
+        },
+        "server.js": {
+          complexityReason:
+            "Orchestrates Express middleware stack, MongoDB connection, and WebSocket setup in a single entry point with broad error surface.",
+          aiSummary:
+            "The Express.js entry point that initialises middleware (CORS, body-parser, helmet), mounts all API route modules, establishes the Mongoose MongoDB connection, and starts the HTTP server. Includes graceful shutdown handling for SIGTERM signals.",
+        },
+        "userRoutes.js": {
+          complexityReason:
+            "Multiple route definitions with mixed authentication middleware chains and role-based guard conditions increase branch count significantly.",
+          aiSummary:
+            "Defines all RESTful endpoints for user resource management including registration, profile retrieval, updates, and deletion. Applies JWT middleware selectively and delegates business logic to the UserController layer.",
+        },
+        "db.js": {
+          complexityReason:
+            "Retry logic with exponential backoff and environment-specific connection URI switching adds moderate conditional complexity.",
+          aiSummary:
+            "Manages the Mongoose connection lifecycle to MongoDB Atlas. Exports a singleton connection helper used across the application, with built-in retry logic, connection event logging, and environment-aware URI configuration.",
+        },
+        "utils.js": {
+          complexityReason:
+            "A collection of utility helpers with varied responsibilities; low individual complexity but high aggregated branch coverage.",
+          aiSummary:
+            "A shared utility module exporting helper functions used across the codebase: date formatting, pagination calculators, response envelope builders, and input sanitization helpers. Kept dependency-free for maximum portability.",
+        },
+      };
+
+      // Enrich a node with MERN demo metadata if it matches a known key
+      function enrichNodeMeta(node) {
+        const label = node.label || node.id.split("/").pop();
+        const match =
+          MERN_NODE_META[label] || MERN_NODE_META[node.id.split("/").pop()];
+        if (match) {
+          node.complexityReason =
+            node.complexityReason || match.complexityReason;
+          node.aiSummary = node.aiSummary || match.aiSummary;
+        }
+        return node;
+      }
+      // ─────────────────────────────────────────────────────────────────────
+
+      // Helper function: Get node radius based on connections + complexity
+      function getNodeRadius(d) {
+        const connectionCount = currentData.links.filter(
+          (l) =>
+            (l.source.id || l.source) === d.id ||
+            (l.target.id || l.target) === d.id,
+        ).length;
+        const baseSize = 5 + Math.sqrt(connectionCount) * 3;
+        const complexityBonus = d.complexityScore
+          ? (d.complexityScore / 100) * 8
+          : 0;
+        return Math.min(baseSize + complexityBonus, 28);
+      }
+
+      // Helper function: Get node color by complexity
+      function getNodeColor(d) {
+        const score = d.complexityScore || 0;
+        if (score >= 67) return "#ef4444"; // red
+        if (score >= 34) return "#f59e0b"; // amber
+        return "#22c55e"; // green
+      }
+
+      // Helper function: Get directory-based stroke color for clustering
+      function getDirectoryColor(d) {
+        const topDir = d.id.split("/")[0];
+        const palette = [
+          "#6366f1",
+          "#06b6d4",
+          "#8b5cf6",
+          "#ec4899",
+          "#14b8a6",
+          "#f97316",
+          "#84cc16",
+          "#f43f5e",
+        ];
+        let hash = 0;
+        for (let c of topDir) hash = c.charCodeAt(0) + ((hash << 5) - hash);
+        return palette[Math.abs(hash) % palette.length];
+      }
+
+      // Helper function: Get glow filter ID based on color
+      function getGlowFilter(d) {
+        const score = d.complexityScore || 0;
+        if (score >= 67) return "url(#glow-2)"; // red
+        if (score >= 34) return "url(#glow-1)"; // amber
+        return "url(#glow-0)"; // green
+      }
+
+      // Helper function: Check if node is a hub (3+ connections)
+      function isHubNode(d) {
+        const connectionCount = currentData.links.filter(
+          (l) =>
+            (l.source.id || l.source) === d.id ||
+            (l.target.id || l.target) === d.id,
+        ).length;
+        return connectionCount >= 3;
+      }
+
+      // Helper function: Update stats bar
+      function updateStatsBar(nodes, links) {
+        const highComplexity = nodes.filter(
+          (n) => (n.complexityScore || 0) >= 67,
+        ).length;
+        const directories = new Set(nodes.map((n) => n.id.split("/")[0])).size;
+
+        document.querySelector("#stat-nodes .stat-value").textContent =
+          nodes.length;
+        document.querySelector("#stat-links .stat-value").textContent =
+          links.length;
+        document.querySelector("#stat-high .stat-value").textContent =
+          highComplexity;
+        document.querySelector("#stat-clusters .stat-value").textContent =
+          directories;
+      }
+
+      // Close panel handler
+      closePanel.addEventListener("click", () => {
+        intelligencePanel.classList.remove("open");
+        svg.selectAll(".node").classed("selected", false);
+        svg.selectAll(".link").classed("highlighted", false);
+      });
+
+      // AI Summarize button handler
+      aiSummarizeBtn.addEventListener("click", async () => {
+        if (!currentSelectedNode || !currentRepoPath) return;
+
+        const node = currentSelectedNode;
+        const cacheKey = node.id;
+
+        // Serve from cache — no extra API call needed
+        if (aiSummaryCache.has(cacheKey)) {
+          showAISummaryBox(aiSummaryCache.get(cacheKey));
+          return;
+        }
+
+        // ── Loading state ──────────────────────────────────────────────────
+        aiSummarizeBtn.disabled = true;
+        aiSummarizeBtn.classList.add("loading");
+        aiSummarizeBtn.querySelector("span").innerHTML =
+          '<span class="loading-spinner"></span>Analyzing file...';
+
+        try {
+          // ── Call real backend route ────────────────────────────────────
+          const res = await fetch("/api/analyze-file", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              repoPath: currentRepoPath,
+              filePath: node.id,
+            }),
+          });
+
+          const data = await res.json();
+
+          if (!res.ok) {
+            // Server returned a structured error
+            throw new Error(data.error || `Server error ${res.status}`);
+          }
+
+          // ── Cache + update live node object ───────────────────────────
+          aiSummaryCache.set(cacheKey, data.aiSummary);
+
+          // Persist back onto the node so the complexity-reason subtext
+          // is updated if the user re-opens the panel for this node
+          node.aiSummary = data.aiSummary;
+          node.complexityReason = data.complexityReason;
+
+          // Refresh the complexity reason subtext immediately
+          const reasonEl = document.getElementById(
+            "complexity-reason-container",
+          );
+          if (data.complexityReason) {
+            reasonEl.textContent = "Reason: " + data.complexityReason;
+            reasonEl.style.display = "block";
+            requestAnimationFrame(() =>
+              requestAnimationFrame(() => reasonEl.classList.add("visible")),
+            );
+          }
+
+          showAISummaryBox(data.aiSummary);
+        } catch (err) {
+          console.error("[AI analyze-file]", err.message);
+
+          // Reset button so user can retry
+          aiSummarizeBtn.disabled = false;
+          aiSummarizeBtn.classList.remove("loading");
+          aiSummarizeBtn.querySelector("span").innerHTML =
+            "✨ Ask AI to Summarize";
+
+          // Inline error card — no alert()
+          aiSummarySection.innerHTML = `
+            <div style="
+              background: rgba(239,68,68,0.08);
+              border: 1px solid rgba(239,68,68,0.35);
+              border-radius: 8px;
+              padding: 12px 14px;
+              font-size: 12px;
+              color: #fca5a5;
+              line-height: 1.5;
+            ">
+              <strong style="display:block;margin-bottom:4px;">⚠ Analysis failed</strong>
+              ${err.message}
+            </div>`;
+          aiSummarySection.style.display = "block";
+          requestAnimationFrame(() =>
+            requestAnimationFrame(() =>
+              aiSummarySection.classList.add("visible"),
+            ),
+          );
+        }
+      });
+
+      function showAISummaryBox(text) {
+        // Reset button
+        aiSummarizeBtn.disabled = false;
+        aiSummarizeBtn.classList.remove("loading");
+        aiSummarizeBtn.style.display = "none";
+
+        // Build and reveal AI output box
+        aiSummarySection.innerHTML = `
+          <div class="ai-output-box">
+            <div class="ai-output-header">
+              ✨ AI Analysis
+            </div>
+            <div class="ai-output-text">${text}</div>
+          </div>
+        `;
+        aiSummarySection.style.display = "block";
+        // Trigger CSS transition on next frame
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            aiSummarySection.classList.add("visible");
+          });
+        });
+      }
+
+      // Function to display AI summary
+      function displayAISummary(summary) {
+        const roleColors = {
+          "entry-point": "#f59e0b",
+          service: "#3b82f6",
+          utility: "#8b5cf6",
+          component: "#10b981",
+          config: "#6366f1",
+          test: "#ec4899",
+          model: "#14b8a6",
+        };
+
+        const roleColor = roleColors[summary.role] || "#8b949e";
+
+        let functionsHTML = "";
+        if (summary.mainFunctions && summary.mainFunctions.length > 0) {
+          functionsHTML = summary.mainFunctions
+            .map(
+              (fn) =>
+                `<span style="display: inline-block; background: #21262d; border: 1px solid #30363d; border-radius: 4px; padding: 4px 8px; margin: 4px 4px 4px 0; font-size: 11px; font-family: monospace;">${fn}</span>`,
+            )
+            .join("");
+        }
+
+        let riskHTML = "";
+        if (summary.riskNote && summary.riskNote !== "null") {
+          riskHTML = `
+            <div style="background: #3d2a00; border: 1px solid #f59e0b; border-radius: 6px; padding: 10px; margin-top: 12px;">
+              <div style="color: #f59e0b; font-weight: bold; font-size: 11px; margin-bottom: 5px;">⚠️ MAINTAINABILITY RISK</div>
+              <div style="color: #c9d1d9; font-size: 12px;">${summary.riskNote}</div>
+            </div>
+          `;
+        }
+
+        aiSummarySection.innerHTML = `
+          <div style="background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 15px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+              <span style="background: ${roleColor}; color: white; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; text-transform: uppercase;">${summary.role}</span>
+            </div>
+            <div style="color: #c9d1d9; font-size: 13px; line-height: 1.6; margin-bottom: 12px;">
+              ${summary.summary}
+            </div>
+            <div style="color: #8b949e; font-size: 11px; font-weight: bold; margin-bottom: 8px;">KEY FUNCTIONS:</div>
+            <div>${functionsHTML || '<span style="color: #6e7681; font-size: 11px;">None identified</span>'}</div>
+            ${riskHTML}
+          </div>
+        `;
+        aiSummarySection.style.display = "block";
+      }
+
+      // Blast Radius Functions
+      // Directional BFS: find nodes that IMPORT (depend on) startNodeId,
+      // i.e., traverse reverse edges: link.target === id → link.source is a dependent.
+      function computeBlastRadius(startNodeId, links) {
+        const dependents = new Set(); // excludes the root itself
+        const queue = [startNodeId];
+        const visited = new Set([startNodeId]);
+
+        while (queue.length > 0) {
+          const id = queue.shift();
+          links.forEach((link) => {
+            // A file that imports `id` — i.e. id is target, source is the dependent
+            const depId =
+              link.target.id === id
+                ? link.source.id
+                : link.source.id === id
+                  ? link.target.id // bidirectional fallback
+                  : null;
+            if (depId && !visited.has(depId)) {
+              visited.add(depId);
+              dependents.add(depId);
+              queue.push(depId);
+            }
+          });
+        }
+        return Array.from(dependents);
+      }
+
+      function showBlastRadius(node, links) {
+        blastRadiusActive = true;
+        affectedNodes = computeBlastRadius(node.id, links);
+        const affectedSet = new Set(affectedNodes);
+
+        // ── Node coloring ──────────────────────────────────────────────────
+        svg
+          .selectAll(".node")
+          .classed(
+            "blast-dimmed",
+            (d) => d.id !== node.id && !affectedSet.has(d.id),
+          )
+          .classed("blast-root", (d) => d.id === node.id)
+          .classed(
+            "blast-dependent",
+            (d) => d.id !== node.id && affectedSet.has(d.id),
+          );
+
+        // ── Link coloring ──────────────────────────────────────────────────
+        svg
+          .selectAll(".link")
+          .classed(
+            "blast-dimmed",
+            (l) =>
+              !(
+                (l.source.id === node.id || affectedSet.has(l.source.id)) &&
+                (l.target.id === node.id || affectedSet.has(l.target.id))
+              ),
+          )
+          .classed(
+            "blast-affected",
+            (l) =>
+              (l.source.id === node.id || affectedSet.has(l.source.id)) &&
+              (l.target.id === node.id || affectedSet.has(l.target.id)),
+          );
+
+        // ── Badge ──────────────────────────────────────────────────────────
+        blastBadge.textContent = `🔥 ${affectedNodes.length} files in blast radius`;
+        blastBadge.style.display = "block";
+
+        // ── Refactor panel ─────────────────────────────────────────────────
+        const rpFileList = document.getElementById("rp-file-list");
+        rpFileList.innerHTML =
+          `<div class="rp-file-item root-file">⚡ ${node.id} (root)</div>` +
+          affectedNodes
+            .map((id) => `<div class="rp-file-item">→ ${id}</div>`)
+            .join("");
+
+        document.getElementById("rp-instruction").value = "";
+        document.getElementById("refactor-panel").style.display = "block";
+        blastControls.style.display = "block";
+
+        // Hide the trigger button while panel is active
+        document.getElementById("blast-calc-btn").style.display = "none";
+      }
+
+      function clearBlastRadius() {
+        blastRadiusActive = false;
+        affectedNodes = [];
+
+        svg
+          .selectAll(".node")
+          .classed("blast-dimmed", false)
+          .classed("blast-root", false)
+          .classed("blast-dependent", false);
+
+        svg
+          .selectAll(".link")
+          .classed("blast-dimmed", false)
+          .classed("blast-affected", false);
+
+        blastBadge.style.display = "none";
+        blastControls.style.display = "none";
+        document.getElementById("refactor-panel").style.display = "none";
+
+        // Show trigger button again if a node is still selected
+        if (currentSelectedNode) {
+          document.getElementById("blast-calc-btn").style.display = "block";
+        }
+      }
+
+      // Context menu handlers
+      document.addEventListener("click", () => {
+        contextMenu.style.display = "none";
+      });
+
+      showBlastRadiusItem.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (contextMenuNode) {
+          showBlastRadius(contextMenuNode, currentData.links);
+        }
+        contextMenu.style.display = "none";
+      });
+
+      clearBlastBtn.addEventListener("click", clearBlastRadius);
+
+      // Calculate Blast Radius button (inside intelligence panel)
+      document
+        .getElementById("blast-calc-btn")
+        .addEventListener("click", () => {
+          if (currentSelectedNode) {
+            showBlastRadius(currentSelectedNode, currentData.links);
+          }
+        });
+
+      // Execute Multi-File Refactor submit
+      document.getElementById("rp-submit-btn").addEventListener("click", () => {
+        const instruction = document
+          .getElementById("rp-instruction")
+          .value.trim();
+        if (!instruction) {
+          document.getElementById("rp-instruction").focus();
+          return;
+        }
+        const submitBtn = document.getElementById("rp-submit-btn");
+        submitBtn.disabled = true;
+        submitBtn.textContent = "⏳ Queuing refactor...";
+
+        // Simulate queuing (replace with real API call when backend is ready)
+        setTimeout(() => {
+          const toast = document.createElement("div");
+          toast.style.cssText = [
+            "position:fixed",
+            "top:20px",
+            "left:50%",
+            "transform:translateX(-50%)",
+            "background:linear-gradient(135deg,#22c55e,#16a34a)",
+            "color:white",
+            "padding:14px 24px",
+            "border-radius:8px",
+            "font-weight:700",
+            "font-size:13px",
+            "box-shadow:0 4px 14px rgba(34,197,94,0.45)",
+            "z-index:3000",
+            "pointer-events:none",
+          ].join(";");
+          toast.textContent = `✅ Refactor queued for ${affectedNodes.length + 1} files`;
+          document.body.appendChild(toast);
+          setTimeout(() => toast.remove(), 3500);
+
+          submitBtn.disabled = false;
+          submitBtn.textContent = "⚡ Execute Multi-File Refactor";
+        }, 1200);
+      });
+
+      // Function to open intelligence panel with node data
+      function openIntelligencePanel(node, links) {
+        currentSelectedNode = enrichNodeMeta(node);
+        const breakdown = node.complexityBreakdown || {
+          branchCount: 0,
+          nestingDepth: 0,
+          functionCount: 0,
+          todoCount: 0,
+          lineCount: 0,
+        };
+        const score = node.complexityScore || 0;
+
+        // Update file info
+        document.getElementById("panel-filename").textContent = node.label;
+        document.getElementById("panel-filepath").textContent = node.id;
+
+        // Update complexity score
+        const complexityText = `${score}/100 (${getComplexityLabel(score)})`;
+        document.getElementById("panel-complexity-text").textContent =
+          complexityText;
+        document.getElementById("panel-complexity-text").style.color =
+          getComplexityColor(score);
+
+        const progressBar = document.getElementById("panel-complexity-bar");
+        progressBar.style.width = score + "%";
+        progressBar.style.background = getComplexityColor(score);
+
+        // Show complexity reason if available
+        const reasonEl = document.getElementById("complexity-reason-container");
+        reasonEl.classList.remove("visible");
+        reasonEl.style.display = "none";
+        if (node.complexityReason) {
+          reasonEl.textContent = "Reason: " + node.complexityReason;
+          reasonEl.style.display = "block";
+          // Trigger fade-in
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => reasonEl.classList.add("visible"));
+          });
+        }
+
+        // Update breakdown stats
+        document.getElementById("panel-branches").textContent =
+          breakdown.branchCount;
+        document.getElementById("panel-nesting").textContent =
+          breakdown.nestingDepth;
+        document.getElementById("panel-todos").textContent =
+          breakdown.todoCount;
+        document.getElementById("panel-lines").textContent =
+          breakdown.lineCount;
+
+        // Update imports
+        const imports = links.filter((l) => l.source.id === node.id);
+        document.getElementById("panel-imports-count").textContent =
+          imports.length;
+        if (imports.length > 0) {
+          document.getElementById("panel-imports").innerHTML = imports
+            .map((l) => `<div class="dependency-item">→ ${l.target.id}</div>`)
+            .join("");
+        } else {
+          document.getElementById("panel-imports").innerHTML = "No imports";
+        }
+
+        // Update imported by
+        const importedBy = links.filter((l) => l.target.id === node.id);
+        document.getElementById("panel-importedby-count").textContent =
+          importedBy.length;
+        if (importedBy.length > 0) {
+          document.getElementById("panel-importedby").innerHTML = importedBy
+            .map((l) => `<div class="dependency-item">← ${l.source.id}</div>`)
+            .join("");
+        } else {
+          document.getElementById("panel-importedby").innerHTML =
+            "Not imported by any file";
+        }
+
+        // Reset AI section and button for new node
+        aiSummarySection.style.display = "none";
+        aiSummarySection.classList.remove("visible");
+        aiSummarySection.innerHTML = "";
+        aiSummarizeBtn.style.display = "";
+        aiSummarizeBtn.disabled = false;
+        aiSummarizeBtn.classList.remove("loading");
+        aiSummarizeBtn.querySelector("span").innerHTML =
+          "✨ Ask AI to Summarize";
+
+        // Reset Blast Radius UI state for new node
+        document.getElementById("blast-calc-btn").style.display = "block";
+        document.getElementById("refactor-panel").style.display = "none";
+        blastControls.style.display = "none";
+
+        // Clear any existing blast visual effects
+        if (blastRadiusActive) {
+          clearBlastRadius();
+        }
+
+        // Open the panel
+        intelligencePanel.classList.add("open");
+      }
+
+      // Complexity color scale function
+      function getComplexityColor(score) {
+        if (score <= 33) return "#22c55e"; // green
+        if (score <= 66) return "#f59e0b"; // amber
+        return "#ef4444"; // red
+      }
+
+      function getComplexityLabel(score) {
+        if (score <= 33) return "Low";
+        if (score <= 66) return "Medium";
+        return "High";
+      }
+
+      function getComplexityClass(score) {
+        if (score <= 33) return "score-low";
+        if (score <= 66) return "score-medium";
+        return "score-high";
+      }
 
       btn.addEventListener("click", async () => {
         const url = document.getElementById("repoUrl").value.trim();
@@ -354,6 +1762,7 @@
 
           const data = await response.json();
           currentData = data;
+          currentRepoPath = data.repoPath; // Store repo path for AI analysis
 
           nodeCountEl.textContent = data.nodes.length;
           linkCountEl.textContent = data.links.length;
@@ -361,6 +1770,7 @@
 
           detailContent.innerHTML = `<span class="success-message">✅ Success!</span><br><br>Rendered <b>${data.nodes.length}</b> files and <b>${data.links.length}</b> internal connections.<br><br>💡 <i>Click any node to view details. Drag nodes to reposition. Scroll to zoom.</i>`;
           renderGraph(data.nodes, data.links);
+          updateStatsBar(data.nodes, data.links);
         } catch (err) {
           detailContent.innerHTML = `<span class="error-message">❌ Error: ${err.message}</span>`;
           console.error("Analysis error:", err);
@@ -374,6 +1784,19 @@
         const width = document.getElementById("graph-container").clientWidth;
         const height = document.getElementById("graph-container").clientHeight;
 
+        // Add SVG glow filters
+        const defs = svg.append("defs");
+        ["#22c55e", "#f59e0b", "#ef4444"].forEach((color, i) => {
+          const filter = defs.append("filter").attr("id", `glow-${i}`);
+          filter
+            .append("feGaussianBlur")
+            .attr("stdDeviation", "3")
+            .attr("result", "coloredBlur");
+          const merge = filter.append("feMerge");
+          merge.append("feMergeNode").attr("in", "coloredBlur");
+          merge.append("feMergeNode").attr("in", "SourceGraphic");
+        });
+
         const g = svg.append("g");
         svg.call(
           d3
@@ -382,25 +1805,141 @@
             .on("zoom", (event) => g.attr("transform", event.transform)),
         );
 
+        // ── STEP 1: BFS to assign depth to every node ─────────────────────
+        (function assignDepths() {
+          // Build fast lookup maps
+          const nodeById = new Map(nodes.map((n) => [n.id, n]));
+          const inDegree = new Map(nodes.map((n) => [n.id, 0]));
+          const outDegree = new Map(nodes.map((n) => [n.id, 0]));
+          const children = new Map(nodes.map((n) => [n.id, []])); // outgoing
+
+          links.forEach((l) => {
+            const srcId = l.source.id ?? l.source;
+            const tgtId = l.target.id ?? l.target;
+            inDegree.set(tgtId, (inDegree.get(tgtId) || 0) + 1);
+            outDegree.set(srcId, (outDegree.get(srcId) || 0) + 1);
+            if (children.has(srcId)) children.get(srcId).push(tgtId);
+          });
+
+          // Root heuristic: no incoming edges OR filename matches common entry points
+          const rootNames = new Set([
+            "index.js",
+            "index.ts",
+            "server.js",
+            "app.js",
+            "main.js",
+            "main.ts",
+            "App.jsx",
+            "App.tsx",
+          ]);
+          const roots = nodes.filter((n) => {
+            const filename = n.id.split("/").pop();
+            return inDegree.get(n.id) === 0 || rootNames.has(filename);
+          });
+
+          // Initialise all depths to -1 (unvisited)
+          nodes.forEach((n) => {
+            n.depth = -1;
+          });
+
+          // BFS from roots
+          const queue = [];
+          roots.forEach((r) => {
+            if (r.depth === -1) {
+              r.depth = 0;
+              queue.push(r.id);
+            }
+          });
+
+          while (queue.length) {
+            const id = queue.shift();
+            const d = nodeById.get(id).depth;
+            (children.get(id) || []).forEach((childId) => {
+              const child = nodeById.get(childId);
+              if (child && child.depth === -1) {
+                child.depth = d + 1;
+                queue.push(childId);
+              }
+            });
+          }
+
+          // Assign default depth for unreachable (floating) nodes
+          // Use the median depth so they don't clutter the top row
+          const assigned = nodes
+            .filter((n) => n.depth >= 0)
+            .map((n) => n.depth);
+          const fallback = assigned.length
+            ? Math.round(assigned.reduce((a, b) => a + b, 0) / assigned.length)
+            : 2;
+          nodes.forEach((n) => {
+            if (n.depth === -1) n.depth = fallback;
+          });
+        })();
+
+        // ── STEP 2: Assign X target per top-level directory ───────────────
+        const dirList = Array.from(
+          new Set(nodes.map((n) => n.id.split("/")[0])),
+        );
+        const dirCount = dirList.length || 1;
+        // Space directories evenly across 80 % of the canvas width
+        const dirXMap = new Map();
+        dirList.forEach((dir, i) => {
+          dirXMap.set(
+            dir,
+            width * 0.1 + (i / (dirCount - 1 || 1)) * width * 0.8,
+          );
+        });
+        nodes.forEach((n) => {
+          const dir = n.id.split("/")[0];
+          n._targetX = dirXMap.get(dir) ?? width / 2;
+        });
+
+        // ── STEP 3: Hierarchical Force Simulation ─────────────────────────
+        const Y_ORIGIN = 80; // px from top for depth-0 nodes
+        const Y_SPACING = 160; // px between depth levels
+
         simulation = d3
           .forceSimulation(nodes)
+          // Weakened link: visual connector only, not a layout driver
           .force(
             "link",
             d3
               .forceLink(links)
               .id((d) => d.id)
-              .distance(80),
+              .distance(100)
+              .strength(0.15),
           )
-          .force("charge", d3.forceManyBody().strength(-300))
-          .force("center", d3.forceCenter(width / 2, height / 2))
-          .force("collide", d3.forceCollide().radius(25));
+          // Mild repulsion so sibling nodes spread naturally
+          .force("charge", d3.forceManyBody().strength(-220).distanceMax(400))
+          // No forceCenter — depth rows replace it vertically
+          // forceY: snap every node to its depth row
+          .force(
+            "y",
+            d3.forceY((d) => Y_ORIGIN + d.depth * Y_SPACING).strength(0.55),
+          )
+          // forceX: pull each node toward its directory column
+          .force("x", d3.forceX((d) => d._targetX).strength(0.22))
+          // Prevent overlap
+          .force(
+            "collide",
+            d3
+              .forceCollide()
+              .radius((d) => getNodeRadius(d) + 14)
+              .strength(0.9),
+          )
+          // Run more alpha ticks so the layout settles faster on load
+          .alphaDecay(0.022)
+          .velocityDecay(0.38);
 
         const link = g
           .append("g")
           .selectAll("line")
           .data(links)
           .join("line")
-          .attr("class", "link");
+          .attr("class", "link")
+          .attr("stroke", "#334155")
+          .attr("stroke-opacity", 0.6)
+          .attr("stroke-width", 1);
 
         const nodeGroup = g
           .append("g")
@@ -409,36 +1948,81 @@
           .join("g")
           .call(drag(simulation));
 
-        const colorScale = d3
-          .scaleOrdinal()
-          .domain([".js", ".ts", ".jsx", ".tsx"])
-          .range(["#f1e05a", "#3178c6", "#61dafb", "#007acc"]);
-
         nodeGroup
           .append("circle")
           .attr("class", "node")
-          .attr("r", (d) => Math.max(6, Math.min(15, Math.sqrt(d.size) / 10)))
-          .attr("fill", (d) =>
-            colorScale(d.label.match(/\.[0-9a-z]+$/i)?.[0] || ".js"),
-          )
+          .attr("r", (d) => getNodeRadius(d))
+          .attr("fill", (d) => getNodeColor(d))
+          .attr("stroke", (d) => getDirectoryColor(d))
+          .attr("stroke-width", 2.5)
+          .attr("filter", (d) => getGlowFilter(d))
+          .on("mouseover", (event, d) => {
+            const score = d.complexityScore || 0;
+
+            // Show simple tooltip for non-hub nodes
+            if (!isHubNode(d)) {
+              nodeTooltip.innerHTML = `
+                <div class="tooltip-name">${d.label}</div>
+                <div class="tooltip-complexity">Complexity: ${score}/100</div>
+              `;
+              nodeTooltip.style.display = "block";
+              nodeTooltip.style.left = event.pageX + 10 + "px";
+              nodeTooltip.style.top = event.pageY + 10 + "px";
+            }
+
+            // Highlight connected links
+            link
+              .classed(
+                "dimmed",
+                (l) => l.source.id !== d.id && l.target.id !== d.id,
+              )
+              .classed(
+                "highlighted",
+                (l) => l.source.id === d.id || l.target.id === d.id,
+              );
+          })
+          .on("mousemove", (event) => {
+            if (nodeTooltip.style.display === "block") {
+              nodeTooltip.style.left = event.pageX + 10 + "px";
+              nodeTooltip.style.top = event.pageY + 10 + "px";
+            }
+          })
+          .on("mouseout", () => {
+            nodeTooltip.style.display = "none";
+            // Reset link highlighting
+            link.classed("dimmed", false).classed("highlighted", false);
+          })
+          .on("contextmenu", (event, d) => {
+            event.preventDefault();
+            contextMenuNode = d;
+            contextMenu.style.display = "block";
+            contextMenu.style.left = event.pageX + "px";
+            contextMenu.style.top = event.pageY + "px";
+          })
           .on("click", (event, d) => {
             svg.selectAll(".node").classed("selected", false);
             svg.selectAll(".link").classed("highlighted", false);
 
             d3.select(event.currentTarget).classed("selected", true);
 
-            const imports = links.filter((l) => l.source.id === d.id);
-            const importedBy = links.filter((l) => l.target.id === d.id);
-
             link.classed(
               "highlighted",
               (l) => l.source.id === d.id || l.target.id === d.id,
             );
 
+            // Open intelligence panel with node data
+            openIntelligencePanel(d, links);
+
+            // Also update left sidebar for backward compatibility
+            const imports = links.filter((l) => l.source.id === d.id);
+            const importedBy = links.filter((l) => l.target.id === d.id);
+            const score = d.complexityScore || 0;
+
             detailContent.innerHTML = `
                         <b>📄 File:</b> ${d.label}<br>
                         <b>📂 Path:</b> <span style="color:#8b949e">${d.id}</span><br>
-                        <b>📏 Size:</b> ${(d.size / 1024).toFixed(2)} KB<br><br>
+                        <b>📏 Size:</b> ${(d.size / 1024).toFixed(2)} KB<br>
+                        <b>🧠 Complexity:</b> <span style="color:${getComplexityColor(score)}">${score}/100 (${getComplexityLabel(score)})</span><br><br>
                         <b>📤 Imports (${imports.length}):</b><br>
                         <span style="color:#8b949e; font-size: 11px;">${imports.map((l) => "→ " + l.target.id).join("<br>") || "None"}</span><br><br>
                         <b>📥 Imported By (${importedBy.length}):</b><br>
@@ -446,13 +2030,58 @@
                     `;
           });
 
+        // Only show labels for hub nodes (3+ connections)
         nodeGroup
+          .filter((d) => isHubNode(d))
           .append("text")
-          .attr("class", "node-label")
-          .attr("dy", 20)
+          .attr("class", "node-label hub-label")
+          .attr("dy", (d) => getNodeRadius(d) + 14)
           .text((d) =>
             d.label.length > 15 ? d.label.substring(0, 12) + "..." : d.label,
           );
+
+        // ── Convex Hull Bounding Boxes ───────────────────────────────────
+        // Group nodes by top-level directory
+        const dirGroups = d3.group(nodes, (n) => n.id.split("/")[0]);
+
+        // Insert hull layer FIRST inside <g> so it renders behind links + nodes
+        const hullLayer = g
+          .insert("g", ":first-child")
+          .attr("class", "hull-layer");
+
+        // One <g> per directory: holds a <path> (hull fill) + <text> (label)
+        const hullGroups = hullLayer
+          .selectAll(".hull-group")
+          .data(Array.from(dirGroups.keys()))
+          .join("g")
+          .attr("class", "hull-group");
+
+        // Path element – shape drawn each tick
+        hullGroups
+          .append("path")
+          .attr("class", "hull-path")
+          .style("fill", (dir) => getDirectoryColor({ id: dir + "/_.js" }))
+          .style("fill-opacity", 0.08)
+          .style("stroke", (dir) => getDirectoryColor({ id: dir + "/_.js" }))
+          .style("stroke-opacity", 0.45)
+          .style("stroke-width", 1.5)
+          .style("stroke-dasharray", "5 4")
+          .style("stroke-linejoin", "round")
+          .style("pointer-events", "none");
+
+        // Label element – positioned at top-left hull vertex each tick
+        hullGroups
+          .append("text")
+          .attr("class", "hull-label")
+          .text((dir) => dir.toUpperCase())
+          .style("font-size", "9px")
+          .style("font-family", "'Inter', monospace")
+          .style("font-weight", "600")
+          .style("letter-spacing", "0.08em")
+          .style("fill", (dir) => getDirectoryColor({ id: dir + "/_.js" }))
+          .style("fill-opacity", 0.6)
+          .style("pointer-events", "none")
+          .style("text-transform", "uppercase");
 
         simulation.on("tick", () => {
           link
@@ -461,6 +2090,60 @@
             .attr("x2", (d) => d.target.x)
             .attr("y2", (d) => d.target.y);
           nodeGroup.attr("transform", (d) => `translate(${d.x},${d.y})`);
+
+          // Redraw convex hulls every tick so they track live node positions
+          hullGroups.each(function (dir) {
+            const groupNodes = dirGroups.get(dir) || [];
+            // Need at least 3 points for a hull; pad duplicates if fewer
+            let pts = groupNodes
+              .filter((n) => n.x != null && n.y != null)
+              .map((n) => [n.x, n.y]);
+
+            const pad =
+              getNodeRadius(groupNodes[0] || { complexityScore: 0 }) + 22;
+
+            if (pts.length === 0) return;
+            if (pts.length === 1)
+              pts = [
+                [pts[0][0] - pad, pts[0][1] - pad],
+                [pts[0][0] + pad, pts[0][1] - pad],
+                [pts[0][0] + pad, pts[0][1] + pad],
+                [pts[0][0] - pad, pts[0][1] + pad],
+              ];
+            if (pts.length === 2)
+              pts = [
+                [pts[0][0] - 1, pts[0][1] - 1],
+                pts[0],
+                [pts[1][0] + 1, pts[1][1] + 1],
+                pts[1],
+              ];
+
+            // Expand hull outward by `pad` pixels for breathing room
+            const hull = d3.polygonHull(pts);
+            if (!hull) return;
+
+            // Centroid for outward expansion
+            const cx = d3.mean(hull, (p) => p[0]);
+            const cy = d3.mean(hull, (p) => p[1]);
+            const expanded = hull.map(([hx, hy]) => {
+              const dx = hx - cx,
+                dy = hy - cy;
+              const len = Math.sqrt(dx * dx + dy * dy) || 1;
+              return [hx + (dx / len) * pad, hy + (dy / len) * pad];
+            });
+
+            const pathStr =
+              "M" + expanded.map((p) => p.join(",")).join("L") + "Z";
+
+            d3.select(this).select(".hull-path").attr("d", pathStr);
+
+            // Place label at the topmost (min-Y) expanded vertex
+            const top = expanded.reduce((a, b) => (b[1] < a[1] ? b : a));
+            d3.select(this)
+              .select(".hull-label")
+              .attr("x", top[0] + 4)
+              .attr("y", top[1] - 5);
+          });
         });
       }
 
